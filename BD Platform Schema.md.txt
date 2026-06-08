@@ -1,0 +1,141 @@
+# BD Platform Schema
+
+## Locked tables
+
+### organisations
+- id
+- name
+- short_name
+- sector
+- tier
+- account_status
+- notes
+- last_contact_date
+
+### contacts
+- id
+- organisation_id
+- first_name
+- last_name
+- email
+- full_name
+- position_title
+- department
+- relationship_type
+- source_type
+- linkedin_profile_url
+- linkedin_connection_status
+- verification_status
+- notes
+- organisation_name
+
+### projects
+- id
+- organisation_id
+- contact_id
+- name
+- project_type
+- status
+- opportunity_signal
+- strategic_importance
+- start_date
+- end_date
+- notes
+- organisation_name
+
+### activities
+- id
+- contact_id
+- organisation_id
+- project_id
+- activity_type
+- activity_date
+- outcome
+- notes
+- logged_by
+- created_at
+
+### tasks
+- id
+- contact_id
+- organisation_id
+- project_id
+- activity_id
+- task_type
+- reason
+- priority
+- status
+- due_date
+- owner
+- notes
+- created_at
+- completed_at
+
+### entity_matches
+- id
+- source_record_type
+- source_record_id
+- candidate_entity_type
+- candidate_entity_id
+- match_score
+- match_method
+- review_status
+- review_notes
+- resolved_by
+- resolved_at
+- created_at
+
+### workflow_runs
+- id
+- workflow_name
+- run_type
+- started_at
+- finished_at
+- status
+- records_processed
+- records_flagged
+- error_summary
+
+### weekly_targets
+- id
+- week_start
+- meeting_target
+- owner
+- created_at
+
+## Relationships
+
+- contacts.organisation_id -> organisations.id
+- projects.organisation_id -> organisations.id
+- projects.contact_id -> contacts.id
+- activities.contact_id -> contacts.id
+- activities.organisation_id -> organisations.id
+- activities.project_id -> projects.id
+- tasks.contact_id -> contacts.id
+- tasks.organisation_id -> organisations.id
+- tasks.project_id -> projects.id
+- tasks.activity_id -> activities.id
+
+## Rules
+
+- Use UUID primary keys for the final application layer.
+- organisations is the parent lookup table.
+- contacts must belong to an organisation.
+- projects must belong to an organisation.
+- project contact_id is optional.
+- organisation_name is retained for UI/display and import staging only.
+- organisation_id is the source of truth for relationships.
+- Keep unique constraints and indexes on common lookup fields.
+- Keep activities as the source of truth for meeting logs.
+- Keep entity_matches for ambiguous or AI-assisted matching only.
+- Keep workflow_runs for automation logging.
+- Keep weekly_targets for target tracking.
+
+## Operational notes
+
+- Import organisations first.
+- Import contacts next.
+- Import projects next.
+- Backfill organisation_id from organisation_name where needed.
+- Reapply NOT NULL constraints after import/backfill if a temporary nullable phase is used.
+- Keep Notion/CSV imports as staging only; the database is the long-term system of record.

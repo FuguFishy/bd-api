@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BD MVP UI</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; max-width: 1100px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    form, section { border: 1px solid #ddd; border-radius: 10px; padding: 16px; background: #fff; }
+    label { display:block; margin-top: 12px; font-weight: 600; }
+    input, select, textarea, button { width: 100%; box-sizing: border-box; margin-top: 6px; padding: 10px; }
+    textarea { min-height: 110px; }
+    button { margin-top: 14px; cursor: pointer; }
+    .row { display: flex; gap: 10px; }
+    .row > * { flex: 1; }
+    .status { min-height: 1.2em; margin-top: 8px; font-size: 0.95rem; }
+    .status.loading { color: #666; font-style: italic; }
+    .status.ok { color: #1a7f37; }
+    .status.err { color: #b42318; }
+    .item { padding: 10px; border-bottom: 1px solid #eee; }
+    .item:last-child { border-bottom: none; }
+    h1, h2, h3 { margin-top: 0; }
+    .toolbar { display:flex; gap:10px; align-items:center; margin-bottom: 12px; }
+    .toolbar button { width: auto; }
+  </style>
+</head>
+<body>
+  <h1>BD MVP UI</h1>
+  <p>Project 5 starting point: log activities, add contacts/projects, and show weekly totals.</p>
+
+  <div class="grid">
+    <form id="activityForm">
+      <h3>Log activity</h3>
+      <div id="activityStatus" class="status"></div>
+
+      <label for="contact">Contact</label>
+      <select id="contact" name="contact">
+        <option value="">Select contact</option>
+      </select>
+      <div id="contactLoadStatus" class="status"></div>
+
+      <label for="organisation">Organisation</label>
+      <select id="organisation" name="organisation">
+        <option value="">Select organisation</option>
+      </select>
+      <div id="organisationLoadStatus" class="status"></div>
+
+      <label for="project">Project</label>
+      <select id="project" name="project">
+        <option value="">Optional project</option>
+      </select>
+      <div id="projectLoadStatus" class="status"></div>
+
+      <label for="activityType">Activity type</label>
+      <select id="activityType" name="activityType">
+        <option value="meeting">meeting</option>
+        <option value="call">call</option>
+        <option value="email">email</option>
+        <option value="linkedin">linkedin</option>
+        <option value="note">note</option>
+      </select>
+
+      <label for="activityDate">Activity date</label>
+      <input type="datetime-local" id="activityDate" name="activityDate">
+
+      <label for="outcome">Outcome</label>
+      <select id="outcome" name="outcome">
+        <option value="scheduled follow-up">scheduled follow-up</option>
+        <option value="proposal sent">proposal sent</option>
+        <option value="qualified lead">qualified lead</option>
+        <option value="no action">no action</option>
+      </select>
+
+      <label for="notes">Notes</label>
+      <textarea id="notes" name="notes"></textarea>
+
+      <div class="row">
+        <button type="submit">Save activity</button>
+        <button type="button" id="resetForm">Reset</button>
+      </div>
+    </form>
+
+    <div>
+      <form id="contactForm">
+        <h3>Quick add contact</h3>
+        <div id="contactStatus" class="status"></div>
+
+        <label for="firstName">First name</label>
+        <input type="text" id="firstName" name="firstName">
+
+        <label for="lastName">Last name</label>
+        <input type="text" id="lastName" name="lastName">
+
+        <label for="contactEmail">Email</label>
+        <input type="email" id="contactEmail" name="contactEmail">
+
+        <label for="contactOrgId">Organisation ID</label>
+        <input type="number" id="contactOrgId" name="contactOrgId">
+
+        <label for="contactOrgName">Or organisation name</label>
+        <input type="text" id="contactOrgName" name="contactOrgName">
+
+        <button type="submit">Save contact</button>
+      </form>
+
+      <form id="projectForm" style="margin-top: 24px;">
+        <h3>Quick add project</h3>
+        <div id="projectFormStatus" class="status"></div>
+
+        <label for="projectName">Project name</label>
+        <input type="text" id="projectName" name="projectName">
+
+        <label for="projectStatus">Status</label>
+        <select id="projectStatus" name="projectStatus">
+          <option value="active">active</option>
+          <option value="pipeline">pipeline</option>
+          <option value="on hold">on hold</option>
+        </select>
+
+        <label for="projectType">Project type</label>
+        <input type="text" id="projectType" name="projectType">
+
+        <label for="projectOrgId">Organisation ID</label>
+        <input type="number" id="projectOrgId" name="projectOrgId">
+
+        <label for="projectOrgName">Or organisation name</label>
+        <input type="text" id="projectOrgName" name="projectOrgName">
+
+        <button type="submit">Save project</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="grid" style="margin-top: 24px;">
+    <section>
+      <div class="toolbar">
+        <h3 style="margin:0;">Weekly totals</h3>
+        <button type="button" id="refreshWeekly">Refresh weekly report</button>
+      </div>
+      <div id="weeklyReport">
+        <div class="item">Loading weekly report...</div>
+      </div>
+    </section>
+
+    <section>
+      <h3>Recent activity</h3>
+      <div id="recentActivity">
+        <div class="item">Jane Smith — meeting — Acme Advisory</div>
+        <div class="item">Tom Walker — call — Summit Group</div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const API_BASE = '';
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+
+    const activityDate = document.getElementById('activityDate');
+    activityDate.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+    const show = (el, msg, ok = true) => {
+      if (!el) return;
+      el.textContent = msg;
+      el.className = `status ${ok ? 'ok' : 'err'}`;
+    };
+
+    const clear = el => {
+      if (!el) return;
+      el.textContent = '';
+      el.className = 'status';
+    };
+
+    const setLoading = (el, msg = 'Loading...') => {
+      if (!el) return;
+      el.textContent = msg;
+      el.className = 'status loading';
+    };
+
+    async function api(path, method = 'GET', body = null) {
+      const options = { method, headers: {} };
+      if (body !== null) {
+        options.headers['Content-Type'] = 'application/json';
+        options.body = JSON.stringify(body);
+      }
+
+      const res = await fetch(API_BASE + path, options);
+      const text = await res.text();
+      let data = null;
+
+      try {
+        data = text ? JSON.parse(text) : null;
+      } catch {
+        data = text;
+      }
+
+      if (!res.ok) {
+        throw new Error((data && data.detail) ? data.detail : `Request failed (${res.status})`);
+      }
+
+      return data;
+    }
+
+    function safeLabel(parts, fallback) {
+      const label = parts.filter(Boolean).join(' ').trim();
+      return label || fallback;
+    }
+
+    async function loadContacts() {
+      const select = document.getElementById('contact');
+      const status = document.getElementById('contactLoadStatus');
+
+      try {
+        setLoading(status, 'Loading contacts...');
+        select.innerHTML = '<option value="">Loading contacts...</option>';
+
+        const contacts = await api('/contacts');
+        const rows = Array.isArray(contacts) ? contacts : [];
+
+        select.innerHTML = '<option value="">Select contact</option>';
+        rows.forEach(c => {
+          const option = document.createElement('option');
+          option.value = c.id ?? '';
+          option.textContent = safeLabel([c.first_name, c.last_name], `Contact ${c.id ?? ''}`);
+          select.appendChild(option);
+        });
+
+        clear(status);
+        if (!rows.length) show(status, 'No contacts found.', false);
+      } catch (err) {
+        select.innerHTML = '<option value="">Select contact</option>';
+        show(status, `Could not load contacts: ${err.message}`, false);
+        console.error('loadContacts failed:', err);
+      }
+    }
+
+    async function loadOrganisations() {
+      const select = document.getElementById('organisation');
+      const status = document.getElementById('organisationLoadStatus');
+
+      try {
+        setLoading(status, 'Loading organisations...');
+        select.innerHTML = '<option value="">Loading organisations...</option>';
+
+        const orgs = await api('/organisations');
+        const rows = Array.isArray(orgs) ? orgs : [];
+
+        select.innerHTML = '<option value="">Select organisation</option>';
+        rows.forEach(o => {
+          const option = document.createElement('option');
+          option.value = o.id ?? '';
+          option.textContent = o.name ?? `Organisation ${o.id ?? ''}`;
+          select.appendChild(option);
+        });
+
+        clear(status);
+        if (!rows.length) show(status, 'No organisations found.', false);
+      } catch (err) {
+        select.innerHTML = '<option value="">Select organisation</option>';
+        show(status, `Could not load organisations: ${err.message}`, false);
+        console.error('loadOrganisations failed:', err);
+      }
+    }
+
+    async function loadProjects() {
+      const select = document.getElementById('project');
+      const status = document.getElementById('projectLoadStatus');
+
+      try {
+        setLoading(status, 'Loading projects...');
+        select.innerHTML = '<option value="">Loading projects...</option>';
+
+        const projects = await api('/projects');
+        const rows = Array.isArray(projects) ? projects : [];
+
+        select.innerHTML = '<option value="">Optional project</option>';
+        rows.forEach(p => {
+          const option = document.createElement('option');
+          option.value = p.id ?? '';
+          option.textContent = p.name ?? `Project ${p.id ?? ''}`;
+          select.appendChild(option);
+        });
+
+        clear(status);
+        if (!rows.length) show(status, 'No projects found.', false);
+      } catch (err) {
+        select.innerHTML = '<option value="">Optional project</option>';
+        show(status, `Could not load projects: ${err.message}`, false);
+        console.error('loadProjects failed:', err);
+      }
+    }
+
+    async function loadWeekly() {
+      const box = document.getElementById('weeklyReport');
+
+      try {
+        box.innerHTML = '<div class="item">Loading weekly report...</div>';
+        const data = await api('/reports/weekly');
+        const rows = [];
+
+        if (Array.isArray(data)) {
+          for (const row of data) {
+            rows.push(`<div class="item">${row.label ?? row.week_start ?? 'Week'} — ${row.meeting_count ?? row.meetings ?? row.total ?? 0}</div>`);
+          }
+        } else if (data && typeof data === 'object') {
+          const meetingCount = data.meeting_count ?? data.meetings ?? data.total_meetings ?? data.count ?? 0;
+          const target = data.meeting_target ?? data.target ?? '';
+          rows.push(`<div class="item"><strong>Meetings:</strong> ${meetingCount}</div>`);
+          rows.push(`<div class="item"><strong>Target:</strong> ${target || 'n/a'}</div>`);
+
+          if (data.daily_breakdown) {
+            rows.push(`<div class="item"><strong>Daily breakdown:</strong> ${escapeHtml(JSON.stringify(data.daily_breakdown))}</div>`);
+          }
+          if (data.gaps) {
+            rows.push(`<div class="item"><strong>Gaps:</strong> ${escapeHtml(JSON.stringify(data.gaps))}</div>`);
+          }
+        } else {
+          rows.push('<div class="item">No weekly data returned.</div>');
+        }
+
+        box.innerHTML = rows.join('') || '<div class="item">No weekly data returned.</div>';
+      } catch (err) {
+        box.innerHTML = `<div class="item">Could not load weekly report: ${escapeHtml(err.message)}</div>`;
+      }
+    }
+
+    async function submitActivity(e) {
+      e.preventDefault();
+      const data = {
+        contact_name: document.getElementById('contact').value || null,
+        organisation_name: document.getElementById('organisation').value || null,
+        project_name: document.getElementById('project').value || null,
+        activity_type: document.getElementById('activityType').value,
+        activity_date: document.getElementById('activityDate').value,
+        outcome: document.getElementById('outcome').value,
+        notes: document.getElementById('notes').value || null
+      };
+
+      const status = document.getElementById('activityStatus');
+      clear(status);
+
+      try {
+        const saved = await api('/activities', 'POST', data);
+        show(status, `Activity saved${saved && saved.id ? ` (id ${saved.id})` : ''}.`, true);
+
+        const recent = document.getElementById('recentActivity');
+        const item = document.createElement('div');
+        item.className = 'item';
+        item.textContent = `${document.getElementById('contact').selectedOptions[0]?.textContent || 'Unknown contact'} — ${data.activity_type} — ${document.getElementById('organisation').selectedOptions[0]?.textContent || 'Unknown organisation'}`;
+        recent.prepend(item);
+
+        await loadWeekly();
+      } catch (err) {
+        show(status, `Could not save activity: ${err.message}`, false);
+      }
+    }
+
+    async function submitContact(e) {
+      e.preventDefault();
+      const status = document.getElementById('contactStatus');
+      clear(status);
+
+      const payload = {
+        first_name: document.getElementById('firstName').value,
+        last_name: document.getElementById('lastName').value,
+        email: document.getElementById('contactEmail').value || null,
+        organisation_id: document.getElementById('contactOrgId').value ? Number(document.getElementById('contactOrgId').value) : null,
+        organisation_name: document.getElementById('contactOrgName').value || null
+      };
+
+      try {
+        const saved = await api('/contacts', 'POST', payload);
+        show(status, `Contact saved${saved && saved.id ? ` (id ${saved.id})` : ''}.`, true);
+        await loadContacts();
+      } catch (err) {
+        show(status, `Could not save contact: ${err.message}`, false);
+      }
+    }
+
+    async function submitProject(e) {
+      e.preventDefault();
+      const status = document.getElementById('projectFormStatus');
+      clear(status);
+
+      const payload = {
+        name: document.getElementById('projectName').value,
+        status: document.getElementById('projectStatus').value,
+        project_type: document.getElementById('projectType').value || null,
+        organisation_id: document.getElementById('projectOrgId').value ? Number(document.getElementById('projectOrgId').value) : null,
+        organisation_name: document.getElementById('projectOrgName').value || null
+      };
+
+      try {
+        const saved = await api('/projects', 'POST', payload);
+        show(status, `Project saved${saved && saved.id ? ` (id ${saved.id})` : ''}.`, true);
+        await loadProjects();
+      } catch (err) {
+        show(status, `Could not save project: ${err.message}`, false);
+      }
+    }
+
+    document.getElementById('activityForm').addEventListener('submit', submitActivity);
+    document.getElementById('contactForm').addEventListener('submit', submitContact);
+    document.getElementById('projectForm').addEventListener('submit', submitProject);
+    document.getElementById('refreshWeekly').addEventListener('click', loadWeekly);
+
+    document.getElementById('resetForm').addEventListener('click', () => {
+      document.getElementById('activityForm').reset();
+      activityDate.value = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      clear(document.getElementById('activityStatus'));
+    });
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>\"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', "'": '&#39;' }[ch]));
+    }
+
+    loadContacts();
+    loadOrganisations();
+    loadProjects();
+    loadWeekly();
+  </script>
+</body>
+</html>
