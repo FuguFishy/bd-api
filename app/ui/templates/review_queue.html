@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ page_title }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/ui/static/review_queue.css">
+</head>
+<body>
+  <div class="page">
+    <header class="page-header">
+      <div>
+        <h1>Review Queue</h1>
+        <p>Review new SmartJobs items and decide what to do with them.</p>
+      </div>
+      <div class="header-actions">
+        <button class="filter-btn active" data-status="new">New</button>
+        <button class="filter-btn" data-status="watchlist">Watchlist</button>
+        <button class="filter-btn" data-status="resolved">Resolved</button>
+        <button class="filter-btn" data-status="ignored">Ignored</button>
+      </div>
+    </header>
+
+    <div id="messageBox" class="message hidden"></div>
+
+    <div class="layout">
+      <aside class="queue-panel">
+        <div class="panel-header">
+          <h2>Items</h2>
+          <span id="itemCount" class="count-badge">0</span>
+        </div>
+        <div id="queueItems" class="queue-items">
+          <div class="empty-state">Loading review items...</div>
+        </div>
+      </aside>
+
+      <main class="detail-panel">
+        <div id="detailContent" class="detail-content">
+          <div class="empty-state">Select an item to view details.</div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="/ui/static/review_queue.js"></script>
+</body>
+</html>

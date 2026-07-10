@@ -1,10 +1,29 @@
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
 from pathlib import Path
 
-app = FastAPI()
-UI_PATH = Path(__file__).with_name("bd-ui-mvp.html")
+from fastapi import FastAPI, Request
+from fastapi.responses import RedirectResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
 
-@app.get("/", response_class=HTMLResponse)
-def home():
-    return UI_PATH.read_text(encoding="utf-8")
+BASE_DIR = Path(__file__).resolve().parent
+
+app = FastAPI(title="BD UI")
+
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+
+
+@app.get("/", include_in_schema=False)
+def ui_root():
+    return RedirectResponse(url="/review-queue")
+
+
+@app.get("/review-queue", include_in_schema=False)
+def review_queue_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "review_queue.html",
+        {
+            "page_title": "Review Queue",
+        },
+    )

@@ -2,11 +2,13 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import func
+
 from app.db.session import get_db
 from app.models.review_queue import ReviewQueue
 from app.schemas.review_queue import ReviewQueueCreate
 
-router = APIRouter(prefix="/webhooks/n8n", tags=["n8n"])
+router = APIRouter(prefix="/webhooks/n8n", tags=["n8n-webhooks"])
+
 
 @router.post("/smartjobs-review-item")
 def smartjobs_review_item(payload: ReviewQueueCreate, db: Session = Depends(get_db)):
@@ -41,16 +43,11 @@ def smartjobs_review_item(payload: ReviewQueueCreate, db: Session = Depends(get_
         },
     ).returning(ReviewQueue.id, ReviewQueue.review_status)
 
-    row = db.execute(stmt).first()
+    result = db.execute(stmt).first()
     db.commit()
 
     return {
         "ok": True,
-        "review_queue_id": row.id,
-        "review_status": row.review_status,
+        "review_queue_id": result.id,
+        "review_status": result.review_status,
     }
-
-
-@router.post("/linkedin", response_model=WebhookAck)
-def linkedin_webhook(payload: WebhookIn):
-    return WebhookAck(ok=True, message="linkedin webhook received")
