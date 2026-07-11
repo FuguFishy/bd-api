@@ -1,60 +1,190 @@
-# BD Automation Process Flow
+# BD API Deployment Guide (Local -> GitHub -> VM)
 
-A small FastAPI-based business development tracker for logging activities, managing contacts, organisations, and projects, and showing a weekly activity summary.
+This documents how to deploy the BD API FastAPI app from your local Windows machine to the Ubuntu VM and run it as a managed service.
 
-## Project overview
+## 1. Local setup and GitHub
 
-This project started as a structured backend + UI MVP for tracking business development activity in one place.  
-It includes:
+1. Edit code locally in:
 
-- A FastAPI API layer.
-- A simple HTML UI mounted into the same app.
-- Database-backed contacts, organisations, projects, and activities.
-- A weekly report endpoint for summary tracking.
+   `C:\Users\GrahamEather\projects\bd-api`
 
-The goal was to build a lightweight internal workflow tool with clear routes, predictable response models, and a simple browser UI.
+2. Ensure `.gitignore` ignores local artifacts:
 
-## What it does
+   ```gitignore
+   __pycache__/
+   *.pyc
+   .venv/
+   .env
+   ```
 
-- Lists contacts, organisations, and projects for dropdown selection.
-- Lets users log activities against those records.
-- Supports quick-add forms for contacts and projects.
-- Shows weekly summary information.
-- Uses a single FastAPI app to serve both the API and the UI.
+3. Commit and push:
 
-## Project structure
+   ```powershell
+   git status
+   git add .
+   git commit -m "Describe your change here"
+   git pull --rebase origin main   # if remote has new commits
+   git push origin main
+   ```
 
-- `app/main.py` — Main FastAPI app and API router registration.
-- `app/ui/main.py` — Serves the HTML UI.
-- `app/api/routes/` — API route modules.
-- `app/db/` — Database CRUD, session, and model code.
-- `app/schemas/` — Pydantic schemas for request and response models.
-- `app/ui/bd-ui-mvp.html` — Browser UI for the MVP.
+This keeps GitHub as the source of truth for the app code.
 
-## Current status
+## 2. VM prep (Ubuntu)
 
-This project is functionally complete as an MVP and has been updated in GitHub.  
-The API and UI are wired together, dropdowns load correctly, and the response models have been standardized for easier maintenance.
-
-This repository is now at a stable stopping point and can be treated as a completed project or archived reference.
-
-## Running locally
-
-Typical development flow:
+SSH into the VM:
 
 ```bash
-python -m uvicorn app.main:app --reload
+ssh ubuntu@<PUBLIC-IP>
 ```
 
-Then open the app in the browser and use the UI to test contacts, organisations, projects, activities, and the weekly report.
+Clone or update the repo:
 
-## Notes
+```bash
+cd /home/ubuntu
 
-- The repository includes a modular FastAPI structure.
-- The UI uses same-origin fetch calls to talk to the API.
-- The response schemas are designed to keep the frontend contract stable.
-- If the project is reopened later, any new work should continue from the current schema-first structure.
+# First time
+git clone https://github.com/FuguFishy/bd-api.git
 
-## Status
+# Later updates
+cd bd-api
+git pull origin main
+```
 
-Project 5 is complete.
+Create/update the Python venv:
+
+```bash
+cd /home/ubuntu/bd-api
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+
+# If templates are used
+pip install jinja2
+```
+
+This venv isolates dependencies on the VM and matches what you use locally.
+
+## 3. Systemd service (`bd-api`)
+
+Create the service file:
+
+```bash
+sudo nano /etc/systemd/system/bd-api.service
+```
+
+Contents:
+
+```ini
+[Unit]
+Description=BD API FastAPI application
+After=network.target
+
+[Service]
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/bd-api
+Environment="PATH=/home/ubuntu/bd-api/.venv/bin"
+ExecStart=/home/ubuntu/bd-api/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable bd-api.service
+sudo systemctl start bd-api.service
+sudo systemctl status bd-api.service
+```
+
+Check port 8000 is owned by the service:
+
+```bash
+sudo lsof -i :8000
+```
+
+You should see a `uvicorn` process using `/home/ubuntu/bd-api/.venv/bin/uvicorn` and working from `/home/ubuntu/bd-api`.
+
+## 4. Testing from VM
+
+From the VM:
+
+```bash
+curl -I http://127.0.0.1:8000/docs
+```
+
+Expect `200 OK` or similar, which confirms the app is responding locally.
+
+## 5. Testing from Windows
+
+In PowerShell, using the VM public IP:
+
+```powershell
+$jsonResolve = @{
+  action            = "create_organisation_and_contact"
+  resolved_by       = "Graham"
+  organisation_name = "Test Organisation"
+  contact_name      = "Test Contact"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Method POST `
+  -Uri "http://<PUBLIC-IP>:8000/review-queue/17/resolve" `
+  -ContentType "application/json" `
+  -Body $jsonResolve
+```
+
+Expected success response:
+
+```text
+ok                     : True
+review_queue_id        : 17
+review_status          : resolved
+review_action          : create_organisation_and_contact
+linked_organisation_id : <id>
+linked_contact_id      : <id>
+```
+
+This proves the end-to-end path from local -> VM -> database is working.
+
+## 6. Everyday operations on the VM
+
+```bash
+# Check service status
+sudo systemctl status bd-api.service
+
+# Restart after code changes
+sudo systemctl restart bd-api.service
+
+# View recent logs
+journalctl -u bd-api.service -n 100 --no-pager
+
+# Stop service
+sudo systemctl stop bd-api.service
+```
+
+## 7. Normal deployment workflow
+
+1. Make changes locally.
+2. Commit and push to GitHub.
+3. On the VM, run:
+
+   ```bash
+   cd /home/ubuntu/bd-api
+   git pull origin main
+   source .venv/bin/activate
+   pip install -r requirements.txt   # only if dependencies changed
+   sudo systemctl restart bd-api.service
+   ```
+
+4. Confirm the service is healthy:
+
+   ```bash
+   sudo systemctl status bd-api.service
+   ```
+
+This keeps deployment simple, low-cost, and repeatable without relying on a manually started terminal session.
