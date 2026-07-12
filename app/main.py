@@ -11,6 +11,7 @@ from app.api.routes.n8n_webhooks import router as n8n_webhooks_router
 from app.api.routes.review_queue import router as review_queue_router
 from app.api.routes.scrape_runs import router as scrape_runs_router
 from app.ui.main import app as ui_app
+from app.api.routes.ops_dashboard import router as ops_dashboard_router
 
 app = FastAPI(
     title="BD API",
