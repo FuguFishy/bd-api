@@ -9,14 +9,12 @@ from app.api.routes.activities import router as activities_router
 from app.api.routes.reports import router as reports_router
 from app.api.routes.n8n_webhooks import router as n8n_webhooks_router
 from app.api.routes.review_queue import router as review_queue_router
-from app.api.routes.workflow_runs import router as workflow_runs_router
-from app.ui.main import app as ui_app
 from app.api.routes.scrape_runs import router as scrape_runs_router
-
+from app.ui.main import app as ui_app
 
 app = FastAPI(
     title="BD API",
-    description="Internal BD platform API with UI routes, review queue, workflow runs, and n8n webhooks",
+    description="Internal BD platform API with UI routes, review queue, n8n webhooks, and ops monitoring",
     version="1.0.0",
 )
 
@@ -36,8 +34,6 @@ app.include_router(activities_router)
 app.include_router(reports_router)
 app.include_router(n8n_webhooks_router)
 app.include_router(review_queue_router)
-app.include_router(workflow_runs_router)
 app.include_router(scrape_runs_router)
-
 
 app.mount("/ui", ui_app)
