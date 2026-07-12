@@ -36,5 +36,6 @@ app.include_router(reports_router)
 app.include_router(n8n_webhooks_router)
 app.include_router(review_queue_router)
 app.include_router(scrape_runs_router)
+app.include_router(ops_dashboard_router)
 
 app.mount("/ui", ui_app)
