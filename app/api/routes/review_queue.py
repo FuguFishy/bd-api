@@ -1,5 +1,6 @@
 from datetime import datetime, UTC
 from typing import Optional
+import json
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text
@@ -17,21 +18,6 @@ from app.schemas.review_queue import (
 router = APIRouter(prefix="/review-queue", tags=["review-queue"])
 
 
-def split_contact_name(full_name: Optional[str]) -> tuple[Optional[str], Optional[str], Optional[str]]:
-    if not full_name:
-        return None, None, None
-
-    cleaned = full_name.strip()
-    if not cleaned:
-        return None, None, None
-
-    parts = cleaned.split(None, 1)
-    first_name = parts[0]
-    last_name = parts[1] if len(parts) > 1 else None
-
-    return first_name, last_name, cleaned
-
-
 @router.get("", response_model=list[ReviewQueueOut])
 def list_review_queue(
     status: Optional[str] = Query(default=None),
@@ -39,34 +25,37 @@ def list_review_queue(
     db: Session = Depends(get_db),
 ):
     sql = """
-    select
-        id,
-        source_type,
-        review_type,
-        review_status,
-        source_record_key,
-        source_payload,
-        scraped_organisation,
-        scraped_contact_name,
-        scraped_contact_email,
-        scraped_contact_phone,
-        job_title,
-        job_url,
-        best_candidate_checked,
-        best_score,
-        linked_organisation_id,
-        linked_contact_id,
-        review_action,
-        review_notes,
-        resolved_by,
-        resolved_at,
-        created_at
-    from public.review_queue
-    where (:status is null or review_status = :status)
-    order by created_at desc
-    limit :limit
+        select
+            id,
+            source_type,
+            review_type,
+            review_status,
+            source_record_key,
+            source_payload,
+            scraped_organisation,
+            scraped_contact_name,
+            scraped_contact_email,
+            scraped_contact_phone,
+            job_title,
+            job_url,
+            best_candidate_checked,
+            best_score,
+            linked_organisation_id,
+            linked_contact_id,
+            review_action,
+            review_notes,
+            resolved_by,
+            resolved_at,
+            created_at
+        from public.review_queue
+        where (:status is null or review_status = :status)
+        order by created_at desc
+        limit :limit
     """
-    rows = db.execute(text(sql), {"status": status, "limit": limit}).mappings().all()
+    rows = db.execute(
+        text(sql),
+        {"status": status, "limit": limit},
+    ).mappings().all()
     return [ReviewQueueOut(**dict(row)) for row in rows]
 
 
@@ -76,30 +65,30 @@ def get_review_queue_item(
     db: Session = Depends(get_db),
 ):
     sql = """
-    select
-        id,
-        source_type,
-        review_type,
-        review_status,
-        source_record_key,
-        source_payload,
-        scraped_organisation,
-        scraped_contact_name,
-        scraped_contact_email,
-        scraped_contact_phone,
-        job_title,
-        job_url,
-        best_candidate_checked,
-        best_score,
-        linked_organisation_id,
-        linked_contact_id,
-        review_action,
-        review_notes,
-        resolved_by,
-        resolved_at,
-        created_at
-    from public.review_queue
-    where id = :review_id
+        select
+            id,
+            source_type,
+            review_type,
+            review_status,
+            source_record_key,
+            source_payload,
+            scraped_organisation,
+            scraped_contact_name,
+            scraped_contact_email,
+            scraped_contact_phone,
+            job_title,
+            job_url,
+            best_candidate_checked,
+            best_score,
+            linked_organisation_id,
+            linked_contact_id,
+            review_action,
+            review_notes,
+            resolved_by,
+            resolved_at,
+            created_at
+        from public.review_queue
+        where id = :review_id
     """
     row = db.execute(text(sql), {"review_id": review_id}).mappings().first()
     if not row:
@@ -113,13 +102,15 @@ def create_review_queue_item(
     db: Session = Depends(get_db),
 ):
     existing = db.execute(
-        text("""
-        select id, review_status
-        from public.review_queue
-        where source_type = :source_type
-          and source_record_key = :source_record_key
-        limit 1
-        """),
+        text(
+            """
+            select id, review_status
+            from public.review_queue
+            where source_type = :source_type
+              and source_record_key = :source_record_key
+            limit 1
+            """
+        ),
         {
             "source_type": payload.source_type,
             "source_record_key": payload.source_record_key,
@@ -127,54 +118,60 @@ def create_review_queue_item(
     ).mappings().first()
 
     if existing:
-    return ReviewQueueCreateResponse(
-        created_new_review_item=False,
-        ok=True,
-        review_queue_id=existing["id"],
-        review_status=existing["review_status"],
+        return ReviewQueueCreateResponse(
+            created_new_review_item=False,
+            ok=True,
+            review_queue_id=existing["id"],
+            review_status=existing["review_status"],
+        )
+
+    source_payload_json = (
+        payload.source_payload.model_dump_json()
+        if hasattr(payload.source_payload, "model_dump_json")
+        else json.dumps(payload.source_payload)
     )
 
     inserted = db.execute(
-        text("""
-        insert into public.review_queue (
-            source_type,
-            review_type,
-            review_status,
-            source_record_key,
-            source_payload,
-            scraped_organisation,
-            scraped_contact_name,
-            scraped_contact_email,
-            scraped_contact_phone,
-            job_title,
-            job_url,
-            best_candidate_checked,
-            best_score
-        )
-        values (
-            :source_type,
-            :review_type,
-            'new',
-            :source_record_key,
-            cast(:source_payload as jsonb),
-            :scraped_organisation,
-            :scraped_contact_name,
-            :scraped_contact_email,
-            :scraped_contact_phone,
-            :job_title,
-            :job_url,
-            :best_candidate_checked,
-            :best_score
-        )
-        returning id, review_status
-        """),
+        text(
+            """
+            insert into public.review_queue (
+                source_type,
+                review_type,
+                review_status,
+                source_record_key,
+                source_payload,
+                scraped_organisation,
+                scraped_contact_name,
+                scraped_contact_email,
+                scraped_contact_phone,
+                job_title,
+                job_url,
+                best_candidate_checked,
+                best_score
+            )
+            values (
+                :source_type,
+                :review_type,
+                'new',
+                :source_record_key,
+                cast(:source_payload as jsonb),
+                :scraped_organisation,
+                :scraped_contact_name,
+                :scraped_contact_email,
+                :scraped_contact_phone,
+                :job_title,
+                :job_url,
+                :best_candidate_checked,
+                :best_score
+            )
+            returning id, review_status
+            """
+        ),
         {
             "source_type": payload.source_type,
             "review_type": payload.review_type,
             "source_record_key": payload.source_record_key,
-            "source_payload": payload.source_payload.model_dump_json()
-            if hasattr(payload.source_payload, "model_dump_json")
-            else __import__("json").dumps(payload.source_payload),
+            "source_payload": source_payload_json,
             "scraped_organisation": payload.scraped_organisation,
             "scraped_contact_name": payload.scraped_contact_name,
             "scraped_contact_email": payload.scraped_contact_email,
@@ -189,11 +186,11 @@ def create_review_queue_item(
     db.commit()
 
     return ReviewQueueCreateResponse(
-    created_new_review_item=True,
-    ok=True,
-    review_queue_id=inserted["id"],
-    review_status=inserted["review_status"],
-)
+        created_new_review_item=True,
+        ok=True,
+        review_queue_id=inserted["id"],
+        review_status=inserted["review_status"],
+    )
 
 
 @router.post("/{review_id}/resolve", response_model=ReviewQueueResolveResponse)
@@ -203,12 +200,17 @@ def resolve_review_queue_item(
     db: Session = Depends(get_db),
 ):
     review = db.execute(
-        text("""
-        select *
-        from public.review_queue
-        where id = :review_id
-        limit 1
-        """),
+        text(
+            """
+            select
+                id,
+                linked_organisation_id,
+                linked_contact_id
+            from public.review_queue
+            where id = :review_id
+            limit 1
+            """
+        ),
         {"review_id": review_id},
     ).mappings().first()
 
@@ -220,15 +222,18 @@ def resolve_review_queue_item(
 
     if payload.action == "ignore":
         db.execute(
-            text("""
-            update public.review_queue
-            set review_status = 'ignored',
-                review_action = :review_action,
-                review_notes = :review_notes,
-                resolved_by = :resolved_by,
-                resolved_at = :resolved_at
-            where id = :review_id
-            """),
+            text(
+                """
+                update public.review_queue
+                set
+                    review_status = 'ignored',
+                    review_action = :review_action,
+                    review_notes = :review_notes,
+                    resolved_by = :resolved_by,
+                    resolved_at = :resolved_at
+                where id = :review_id
+                """
+            ),
             {
                 "review_action": payload.action,
                 "review_notes": payload.review_notes,
@@ -240,15 +245,18 @@ def resolve_review_queue_item(
 
     elif payload.action == "watchlist":
         db.execute(
-            text("""
-            update public.review_queue
-            set review_status = 'watchlist',
-                review_action = :review_action,
-                review_notes = :review_notes,
-                resolved_by = :resolved_by,
-                resolved_at = :resolved_at
-            where id = :review_id
-            """),
+            text(
+                """
+                update public.review_queue
+                set
+                    review_status = 'watchlist',
+                    review_action = :review_action,
+                    review_notes = :review_notes,
+                    resolved_by = :resolved_by,
+                    resolved_at = :resolved_at
+                where id = :review_id
+                """
+            ),
             {
                 "review_action": payload.action,
                 "review_notes": payload.review_notes,
@@ -263,12 +271,14 @@ def resolve_review_queue_item(
             raise HTTPException(status_code=400, detail="organisation_id is required")
 
         org = db.execute(
-            text("""
-            select id
-            from public.organisations
-            where id = :organisation_id
-            limit 1
-            """),
+            text(
+                """
+                select id
+                from public.organisations
+                where id = :organisation_id
+                limit 1
+                """
+            ),
             {"organisation_id": payload.organisation_id},
         ).mappings().first()
 
@@ -278,16 +288,19 @@ def resolve_review_queue_item(
         linked_organisation_id = org["id"]
 
         db.execute(
-            text("""
-            update public.review_queue
-            set review_status = 'resolved',
-                review_action = :review_action,
-                linked_organisation_id = :linked_organisation_id,
-                review_notes = :review_notes,
-                resolved_by = :resolved_by,
-                resolved_at = :resolved_at
-            where id = :review_id
-            """),
+            text(
+                """
+                update public.review_queue
+                set
+                    review_status = 'resolved',
+                    review_action = :review_action,
+                    linked_organisation_id = :linked_organisation_id,
+                    review_notes = :review_notes,
+                    resolved_by = :resolved_by,
+                    resolved_at = :resolved_at
+                where id = :review_id
+                """
+            ),
             {
                 "review_action": payload.action,
                 "linked_organisation_id": linked_organisation_id,
@@ -302,23 +315,9 @@ def resolve_review_queue_item(
         if not payload.organisation_name:
             raise HTTPException(status_code=400, detail="organisation_name is required")
 
-        existing_org = db.execute(
-            text("""
-            select id
-            from public.organisations
-            where lower(trim(name)) = lower(trim(:name))
-            limit 1
-            """),
-            {
-                "name": payload.organisation_name,
-            },
-        ).mappings().first()
-
-        if existing_org:
-            linked_organisation_id = existing_org["id"]
-        else:
-            org = db.execute(
-                text("""
+        org = db.execute(
+            text(
+                """
                 insert into public.organisations (
                     name,
                     short_name,
@@ -334,29 +333,33 @@ def resolve_review_queue_item(
                     :account_status
                 )
                 returning id
-                """),
-                {
-                    "name": payload.organisation_name,
-                    "short_name": payload.organisation_short_name,
-                    "sector": payload.sector,
-                    "tier": payload.tier,
-                    "account_status": payload.account_status,
-                },
-            ).mappings().first()
+                """
+            ),
+            {
+                "name": payload.organisation_name,
+                "short_name": payload.organisation_short_name,
+                "sector": payload.sector,
+                "tier": payload.tier,
+                "account_status": payload.account_status,
+            },
+        ).mappings().first()
 
-            linked_organisation_id = org["id"]
+        linked_organisation_id = org["id"]
 
         db.execute(
-            text("""
-            update public.review_queue
-            set review_status = 'resolved',
-                review_action = :review_action,
-                linked_organisation_id = :linked_organisation_id,
-                review_notes = :review_notes,
-                resolved_by = :resolved_by,
-                resolved_at = :resolved_at
-            where id = :review_id
-            """),
+            text(
+                """
+                update public.review_queue
+                set
+                    review_status = 'resolved',
+                    review_action = :review_action,
+                    linked_organisation_id = :linked_organisation_id,
+                    review_notes = :review_notes,
+                    resolved_by = :resolved_by,
+                    resolved_at = :resolved_at
+                where id = :review_id
+                """
+            ),
             {
                 "review_action": payload.action,
                 "linked_organisation_id": linked_organisation_id,
@@ -373,23 +376,9 @@ def resolve_review_queue_item(
         if not payload.contact_name:
             raise HTTPException(status_code=400, detail="contact_name is required")
 
-        existing_org = db.execute(
-            text("""
-            select id
-            from public.organisations
-            where lower(trim(name)) = lower(trim(:name))
-            limit 1
-            """),
-            {
-                "name": payload.organisation_name,
-            },
-        ).mappings().first()
-
-        if existing_org:
-            linked_organisation_id = existing_org["id"]
-        else:
-            org = db.execute(
-                text("""
+        org = db.execute(
+            text(
+                """
                 insert into public.organisations (
                     name,
                     short_name,
@@ -405,87 +394,71 @@ def resolve_review_queue_item(
                     :account_status
                 )
                 returning id
-                """),
-                {
-                    "name": payload.organisation_name,
-                    "short_name": payload.organisation_short_name,
-                    "sector": payload.sector,
-                    "tier": payload.tier,
-                    "account_status": payload.account_status,
-                },
-            ).mappings().first()
-
-            linked_organisation_id = org["id"]
-
-        first_name, last_name, full_name = split_contact_name(payload.contact_name)
-
-        if not first_name:
-            raise HTTPException(status_code=400, detail="contact_name could not be parsed")
-
-        existing_contact = db.execute(
-            text("""
-            select id
-            from public.contacts
-            where organisation_id = :organisation_id
-              and lower(trim(full_name)) = lower(trim(:full_name))
-            limit 1
-            """),
+                """
+            ),
             {
-                "organisation_id": linked_organisation_id,
-                "full_name": full_name,
+                "name": payload.organisation_name,
+                "short_name": payload.organisation_short_name,
+                "sector": payload.sector,
+                "tier": payload.tier,
+                "account_status": payload.account_status,
             },
         ).mappings().first()
 
-        if existing_contact:
-            linked_contact_id = existing_contact["id"]
-        else:
-            contact = db.execute(
-                text("""
+        linked_organisation_id = org["id"]
+
+        contact = db.execute(
+            text(
+                """
                 insert into public.contacts (
                     organisation_id,
-                    first_name,
-                    last_name,
                     full_name,
                     position_title,
                     department,
+                    email,
+                    phone,
                     notes
                 )
                 values (
                     :organisation_id,
-                    :first_name,
-                    :last_name,
                     :full_name,
                     :position_title,
                     :department,
+                    :email,
+                    :phone,
                     :notes
                 )
                 returning id
-                """),
-                {
-                    "organisation_id": linked_organisation_id,
-                    "first_name": first_name,
-                    "last_name": last_name,
-                    "full_name": full_name,
-                    "position_title": payload.contact_position_title,
-                    "department": payload.contact_department,
-                    "notes": payload.review_notes,
-                },
-            ).mappings().first()
+                """
+            ),
+            {
+                "organisation_id": linked_organisation_id,
+                "full_name": payload.contact_name,
+                "position_title": payload.contact_position_title,
+                "department": payload.contact_department,
+                "email": payload.contact_email,
+                "phone": payload.contact_phone,
+                "notes": payload.review_notes,
+            },
+        ).mappings().first()
 
-            linked_contact_id = contact["id"]
+        linked_contact_id = contact["id"]
 
         db.execute(
-            text("""
-            update public.review_queue
-            set review_status = 'resolved',
-                review_action = :review_action,
-                linked_organisation_id = :linked_organisation_id,
-                linked_contact_id = :linked_contact_id,
-                review_notes = :review_notes,
-                resolved_by = :resolved_by,
-                resolved_at = :resolved_at
-            where id = :review_id
-            """),
+            text(
+                """
+                update public.review_queue
+                set
+                    review_status = 'resolved',
+                    review_action = :review_action,
+                    linked_organisation_id = :linked_organisation_id,
+                    linked_contact_id = :linked_contact_id,
+                    review_notes = :review_notes,
+                    resolved_by = :resolved_by,
+                    resolved_at = :resolved_at
+                where id = :review_id
+                """
+            ),
             {
                 "review_action": payload.action,
                 "linked_organisation_id": linked_organisation_id,
@@ -503,16 +476,18 @@ def resolve_review_queue_item(
     db.commit()
 
     final_row = db.execute(
-        text("""
-        select
-            id,
-            review_status,
-            review_action,
-            linked_organisation_id,
-            linked_contact_id
-        from public.review_queue
-        where id = :review_id
-        """),
+        text(
+            """
+            select
+                id,
+                review_status,
+                review_action,
+                linked_organisation_id,
+                linked_contact_id
+            from public.review_queue
+            where id = :review_id
+            """
+        ),
         {"review_id": review_id},
     ).mappings().first()
 
