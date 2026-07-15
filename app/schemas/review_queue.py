@@ -3,7 +3,6 @@ from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict
 
-
 ReviewType = Literal[
     "unmatched_organisation",
     "unmatched_contact",
@@ -40,7 +39,7 @@ class ReviewQueueCreate(BaseModel):
     job_title: Optional[str] = None
     job_url: Optional[str] = None
 
-    best_candidate_checked: Optional[str] = None
+    best_candidate_checked: Optional[bool] = None
     best_score: Optional[float] = None
 
 
@@ -97,7 +96,7 @@ class ReviewQueueOut(BaseModel):
     job_title: Optional[str] = None
     job_url: Optional[str] = None
 
-    best_candidate_checked: Optional[str] = None
+    best_candidate_checked: Optional[bool] = None
     best_score: Optional[float] = None
 
     linked_organisation_id: Optional[int] = None
