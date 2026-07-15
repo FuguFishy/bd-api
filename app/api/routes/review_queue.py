@@ -189,10 +189,11 @@ def create_review_queue_item(
     db.commit()
 
     return ReviewQueueCreateResponse(
-        ok=True,
-        review_queue_id=inserted["id"],
-        review_status=inserted["review_status"],
-    )
+    created_new_review_item=True,
+    ok=True,
+    review_queue_id=inserted["id"],
+    review_status=inserted["review_status"],
+)
 
 
 @router.post("/{review_id}/resolve", response_model=ReviewQueueResolveResponse)
