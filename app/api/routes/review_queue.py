@@ -127,11 +127,12 @@ def create_review_queue_item(
     ).mappings().first()
 
     if existing:
-        return ReviewQueueCreateResponse(
-            ok=True,
-            review_queue_id=existing["id"],
-            review_status=existing["review_status"],
-        )
+    return ReviewQueueCreateResponse(
+        created_new_review_item=False,
+        ok=True,
+        review_queue_id=existing["id"],
+        review_status=existing["review_status"],
+    )
 
     inserted = db.execute(
         text("""
