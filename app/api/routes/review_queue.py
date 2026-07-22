@@ -18,39 +18,52 @@ from app.schemas.review_queue import (
 router = APIRouter(prefix="/review-queue", tags=["review-queue"])
 
 
+REVIEW_QUEUE_SELECT = """
+select
+    id,
+    source_type,
+    review_type,
+    review_status,
+    source_record_key,
+    source_payload,
+    scraped_organisation,
+    scraped_contact_name,
+    scraped_contact_email,
+    scraped_contact_phone,
+    job_title,
+    job_url,
+    case
+        when best_candidate_checked is null then null
+        when lower(best_candidate_checked::text) in ('true', 't', 'yes', 'y', '1') then true
+        when lower(best_candidate_checked::text) in ('false', 'f', 'no', 'n', '0') then false
+        else null
+    end as best_candidate_checked,
+    case
+        when best_score is null then null
+        else best_score::double precision
+    end as best_score,
+    linked_organisation_id,
+    linked_contact_id,
+    review_action,
+    review_notes,
+    resolved_by,
+    resolved_at,
+    created_at
+from public.review_queue
+"""
+
+
 @router.get("", response_model=list[ReviewQueueOut])
 def list_review_queue(
     status: Optional[str] = Query(default=None),
     limit: int = Query(default=100, ge=1, le=500),
     db: Session = Depends(get_db),
 ):
-    sql = """
-        select
-            id,
-            source_type,
-            review_type,
-            review_status,
-            source_record_key,
-            source_payload,
-            scraped_organisation,
-            scraped_contact_name,
-            scraped_contact_email,
-            scraped_contact_phone,
-            job_title,
-            job_url,
-            best_candidate_checked,
-            best_score,
-            linked_organisation_id,
-            linked_contact_id,
-            review_action,
-            review_notes,
-            resolved_by,
-            resolved_at,
-            created_at
-        from public.review_queue
-        where (:status is null or review_status = :status)
-        order by created_at desc
-        limit :limit
+    sql = f"""
+    {REVIEW_QUEUE_SELECT}
+    where (:status is null or review_status = :status)
+    order by created_at desc
+    limit :limit
     """
     rows = db.execute(
         text(sql),
@@ -64,31 +77,9 @@ def get_review_queue_item(
     review_id: int,
     db: Session = Depends(get_db),
 ):
-    sql = """
-        select
-            id,
-            source_type,
-            review_type,
-            review_status,
-            source_record_key,
-            source_payload,
-            scraped_organisation,
-            scraped_contact_name,
-            scraped_contact_email,
-            scraped_contact_phone,
-            job_title,
-            job_url,
-            best_candidate_checked,
-            best_score,
-            linked_organisation_id,
-            linked_contact_id,
-            review_action,
-            review_notes,
-            resolved_by,
-            resolved_at,
-            created_at
-        from public.review_queue
-        where id = :review_id
+    sql = f"""
+    {REVIEW_QUEUE_SELECT}
+    where id = :review_id
     """
     row = db.execute(text(sql), {"review_id": review_id}).mappings().first()
     if not row:
