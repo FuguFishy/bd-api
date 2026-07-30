@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ page_title }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/ui/static/crm.css">
+</head>
+<body>
+  <div class="page">
+    <header class="page-header">
+      <div>
+        <h1>Projects</h1>
+        <p>Add projects manually and link them to an organisation.</p>
+      </div>
+      <nav class="top-nav">
+        <a href="/ui/">Ops Dashboard</a>
+        <a href="/ui/review-queue">Review Queue</a>
+        <a href="/ui/crm">CRM</a>
+        <a href="/ui/organisations">Organisations</a>
+        <a href="/ui/contacts">Contacts</a>
+        <a href="/ui/projects" class="active">Projects</a>
+      </nav>
+    </header>
+
+    <div id="messageBox" class="message hidden"></div>
+
+    <div class="two-column">
+      <section class="panel">
+        <h2>Add project</h2>
+        <form id="projectForm" class="form-stack">
+          <label for="projectName">Project name</label>
+          <input id="projectName" name="name" type="text" required placeholder="Digital Transformation Program">
+
+          <label for="projectStatus">Status</label>
+          <select id="projectStatus" name="status">
+            <option value="">Select status</option>
+            <option value="Open">Open</option>
+            <option value="Active">Active</option>
+            <option value="On Hold">On Hold</option>
+            <option value="Closed">Closed</option>
+          </select>
+
+          <label for="projectType">Project type</label>
+          <select id="projectType" name="project_type">
+            <option value="">Select project type</option>
+            <option value="Opportunity">Opportunity</option>
+            <option value="Tender">Tender</option>
+            <option value="Program">Program</option>
+            <option value="Partnership">Partnership</option>
+            <option value="Other">Other</option>
+          </select>
+
+          <label for="organisationName">Organisation</label>
+          <select id="organisationName" name="organisation_name" required>
+            <option value="">Loading organisations...</option>
+          </select>
+
+          <div class="actions">
+            <button type="submit" class="btn btn-primary">Save project</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Project list</h2>
+          <button id="refreshBtn" class="btn btn-secondary" type="button">Refresh</button>
+        </div>
+        <div id="projectList" class="list-wrap">
+          <div class="empty-state">Loading projects...</div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="/ui/static/projects.js"></script>
+</body>
+</html>

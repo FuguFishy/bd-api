@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ page_title }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/ui/static/crm.css">
+</head>
+<body>
+  <div class="page">
+    <header class="page-header">
+      <div>
+        <h1>CRM</h1>
+        <p>Manual entry and browsing for organisations, contacts, projects, and notes.</p>
+      </div>
+      <nav class="top-nav">
+        <a href="/ui/">Ops Dashboard</a>
+        <a href="/ui/review-queue">Review Queue</a>
+        <a href="/ui/crm" class="active">CRM</a>
+        <a href="/ui/organisations">Organisations</a>
+      </nav>
+    </header>
+
+    <main class="card-grid">
+      <a class="nav-card" href="/ui/organisations">
+        <h2>Organisations</h2>
+        <p>Add and list organisations.</p>
+      </a>
+
+      <a class="nav-card" href="/ui/contacts">
+        <h2>Contacts</h2>
+        <p>Add and list contacts linked to organisations.</p>
+      </a>
+
+      <a class="nav-card" href="/ui/projects">
+        <h2>Projects</h2>
+        <p>Add and list projects linked to organisations.</p>
+      </a>
+
+      <a class="nav-card" href="/ui/activities">
+        <h2>Activities</h2>
+        <p>Add and list notes, meetings, and activity logging.</p>
+      </a>
+    </main>
+  </div>
+</body>
+</html>

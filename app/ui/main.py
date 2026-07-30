@@ -1,7 +1,15 @@
-from fastapi import FastAPI
+from pathlib import Path
+
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+
+BASE_DIR = Path(__file__).resolve().parent
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 app = FastAPI()
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -78,9 +86,28 @@ def ui_home():
       color: #b42318;
       font-weight: bold;
     }
+    .nav {
+      margin-bottom: 20px;
+    }
+    .nav a {
+      display: inline-block;
+      margin-right: 12px;
+      color: #0b69a3;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    .nav a:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
+  <div class="nav">
+    <a href="/ui/">Ops Dashboard</a>
+    <a href="/ui/review-queue">Review Queue</a>
+    <a href="/ui/crm">CRM</a>
+  </div>
+
   <h1>BD Ops Dashboard</h1>
   <p class="muted">SmartJobs runs, review queue, and workflow issues.</p>
 
@@ -235,3 +262,65 @@ def ui_home():
 </body>
 </html>
     """
+
+
+@app.get("/review-queue", response_class=HTMLResponse)
+def review_queue_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "review_queue.html",
+        {
+            "page_title": "Review Queue",
+        },
+    )
+
+@app.get("/crm", response_class=HTMLResponse)
+def crm_home_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "crm_home.html",
+        {
+            "page_title": "CRM",
+        },
+    )
+
+
+@app.get("/organisations", response_class=HTMLResponse)
+def organisations_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "organisations.html",
+        {
+            "page_title": "Organisations",
+        },
+    )
+
+@app.get("/contacts", response_class=HTMLResponse)
+def contacts_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "contacts.html",
+        {
+            "page_title": "Contacts",
+        },
+    )
+
+@app.get("/projects", response_class=HTMLResponse)
+def projects_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "projects.html",
+        {
+            "page_title": "Projects",
+        },
+    )
+
+@app.get("/activities", response_class=HTMLResponse)
+def activities_page(request: Request):
+    return templates.TemplateResponse(
+        request,
+        "activities.html",
+        {
+            "page_title": "Activities",
+        },
+    )

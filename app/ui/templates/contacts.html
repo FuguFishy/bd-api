@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ page_title }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/ui/static/crm.css">
+</head>
+<body>
+  <div class="page">
+    <header class="page-header">
+      <div>
+        <h1>Contacts</h1>
+        <p>Add contacts manually and link them to an organisation.</p>
+      </div>
+      <nav class="top-nav">
+        <a href="/ui/">Ops Dashboard</a>
+        <a href="/ui/review-queue">Review Queue</a>
+        <a href="/ui/crm">CRM</a>
+        <a href="/ui/organisations">Organisations</a>
+        <a href="/ui/contacts" class="active">Contacts</a>
+      </nav>
+    </header>
+
+    <div id="messageBox" class="message hidden"></div>
+
+    <div class="two-column">
+      <section class="panel">
+        <h2>Add contact</h2>
+        <form id="contactForm" class="form-stack">
+          <label for="firstName">First name</label>
+          <input id="firstName" name="first_name" type="text" required placeholder="Jane">
+
+          <label for="lastName">Last name</label>
+          <input id="lastName" name="last_name" type="text" required placeholder="Smith">
+
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" placeholder="jane.smith@example.com">
+
+          <label for="organisationName">Organisation</label>
+          <select id="organisationName" name="organisation_name" required>
+            <option value="">Loading organisations...</option>
+          </select>
+
+          <div class="actions">
+            <button type="submit" class="btn btn-primary">Save contact</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Contact list</h2>
+          <button id="refreshBtn" class="btn btn-secondary" type="button">Refresh</button>
+        </div>
+        <div id="contactList" class="list-wrap">
+          <div class="empty-state">Loading contacts...</div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="/ui/static/contacts.js"></script>
+</body>
+</html>

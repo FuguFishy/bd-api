@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BD Platform UI Connected</title>
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap" rel="stylesheet">
+  <style>
+    :root, [data-theme="light"] {
+      --text-xs: clamp(0.75rem, 0.7rem + 0.25vw, 0.875rem);
+      --text-sm: clamp(0.875rem, 0.8rem + 0.35vw, 1rem);
+      --text-base: clamp(1rem, 0.95rem + 0.25vw, 1.125rem);
+      --text-lg: clamp(1.125rem, 1rem + 0.75vw, 1.5rem);
+      --text-xl: clamp(1.5rem, 1.2rem + 1.25vw, 2.1rem);
+      --space-2: 0.5rem; --space-3: 0.75rem; --space-4: 1rem; --space-5: 1.25rem; --space-6: 1.5rem; --space-8: 2rem;
+      --color-bg: #f7f6f2; --color-surface: #f9f8f5; --color-surface-2: #fbfbf9; --color-surface-offset: #f3f0ec; --color-border: #d4d1ca; --color-divider: #dcd9d5;
+      --color-text: #28251d; --color-text-muted: #66645f; --color-text-faint: #a7a39b; --color-text-inverse: #f9f8f4;
+      --color-primary: #01696f; --color-primary-hover: #0c4e54; --color-primary-highlight: #cedcd8; --color-success:#437a22; --color-warning:#964219; --color-error:#a12c7b;
+      --radius-lg: .875rem; --radius-xl: 1rem; --radius-full: 9999px; --shadow-sm: 0 1px 2px rgba(26,20,10,.06); --shadow-md: 0 8px 24px rgba(26,20,10,.08); --font-body:'Satoshi',Inter,sans-serif;
+    }
+    [data-theme="dark"] {
+      --color-bg:#171614; --color-surface:#1c1b19; --color-surface-2:#201f1d; --color-surface-offset:#242321; --color-border:#393836; --color-divider:#2b2a28;
+      --color-text:#e5e2db; --color-text-muted:#a09d95; --color-text-faint:#706d67; --color-text-inverse:#1a1917; --color-primary:#4f98a3; --color-primary-hover:#227f8b; --color-primary-highlight:#2b3738;
+    }
+    *{box-sizing:border-box} html,body{height:100%;margin:0} body{font-family:var(--font-body);font-size:var(--text-base);line-height:1.5;color:var(--color-text);background:var(--color-bg)} button,input,select,textarea{font:inherit;color:inherit}
+    .shell{display:grid;grid-template-columns:260px 1fr;height:100dvh}.sidebar{padding:var(--space-5);background:color-mix(in srgb,var(--color-surface) 78%,var(--color-primary-highlight));border-right:1px solid var(--color-border);overflow:auto}.main-wrap{display:grid;grid-template-rows:auto 1fr;min-width:0}
+    .brand{display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-8)} .brand strong{font-size:var(--text-sm)} .brand span{display:block;font-size:var(--text-xs);color:var(--color-text-muted)} .nav-link{display:flex;align-items:center;justify-content:space-between;padding:.8rem .9rem;margin-bottom:var(--space-2);border-radius:var(--radius-lg);text-decoration:none;color:var(--color-text-muted)} .nav-link.active,.nav-link:hover{background:var(--color-surface-2);color:var(--color-text);box-shadow:var(--shadow-sm)}
+    .header{display:flex;justify-content:space-between;gap:var(--space-4);align-items:center;padding:var(--space-4) var(--space-6);border-bottom:1px solid var(--color-border);background:color-mix(in srgb,var(--color-bg) 88%,transparent)} .header h1{margin:0;font-size:var(--text-xl)} .header p{margin:.25rem 0 0;font-size:var(--text-sm);color:var(--color-text-muted)} .actions{display:flex;gap:var(--space-3);align-items:center}
+    .btn{padding:.8rem 1rem;border-radius:var(--radius-full);border:1px solid transparent;background:var(--color-surface);cursor:pointer}.btn.primary{background:var(--color-primary);color:var(--color-text-inverse)} .btn.ghost{border-color:var(--color-border)} .search{min-width:260px;padding:.8rem 1rem;border-radius:var(--radius-full);border:1px solid var(--color-border);background:var(--color-surface)}
+    .main{overflow:auto;padding:var(--space-6)} .screen{display:none}.screen.active{display:block}.section-head{display:flex;justify-content:space-between;align-items:end;gap:var(--space-4);margin-bottom:var(--space-5)} .section-head h2{margin:0;font-size:var(--text-lg)} .section-head p{margin:.3rem 0 0;color:var(--color-text-muted);font-size:var(--text-sm)}
+    .grid{display:grid;gap:var(--space-4)} .kpi-grid{grid-template-columns:repeat(4,minmax(0,1fr))} .two-col{grid-template-columns:1.25fr 1fr} .cards-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .card{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-xl);box-shadow:var(--shadow-sm);padding:var(--space-5)} .eyebrow{font-size:var(--text-xs);text-transform:uppercase;letter-spacing:.12em;color:var(--color-text-faint);margin-bottom:var(--space-2)} .kpi{font-size:2rem;font-weight:700}.muted{font-size:var(--text-sm);color:var(--color-text-muted)}
+    .row{display:flex;justify-content:space-between;gap:var(--space-4);padding:.9rem 0;border-top:1px solid var(--color-divider)} .row:first-child{border-top:0;padding-top:0} .badge{display:inline-flex;align-items:center;padding:.25rem .55rem;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:600} .badge.warn{background:color-mix(in srgb,var(--color-warning) 14%,transparent);color:var(--color-warning)} .badge.success{background:color-mix(in srgb,var(--color-success) 14%,transparent);color:var(--color-success)} .badge.error{background:color-mix(in srgb,var(--color-error) 14%,transparent);color:var(--color-error)}
+    .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--space-4)} .field{display:grid;gap:var(--space-2)} .field.full{grid-column:1/-1} label{font-size:var(--text-sm);font-weight:600} input,select,textarea{width:100%;padding:.85rem .95rem;background:var(--color-surface-2);border:1px solid var(--color-border);border-radius:var(--radius-lg)} textarea{min-height:110px}
+    .toolbar{display:flex;gap:var(--space-3);flex-wrap:wrap;margin-bottom:var(--space-4)} .notice{padding:.8rem 1rem;border-radius:var(--radius-lg);margin-bottom:var(--space-4);display:none} .notice.success{display:none;background:color-mix(in srgb,var(--color-success) 12%,transparent);color:var(--color-success)} .notice.error{display:none;background:color-mix(in srgb,var(--color-error) 12%,transparent);color:var(--color-error)}
+    table{width:100%;border-collapse:collapse;font-size:var(--text-sm)} th,td{padding:.95rem 1rem;text-align:left;border-bottom:1px solid var(--color-divider)} th{background:var(--color-surface-offset);font-size:var(--text-xs);text-transform:uppercase;letter-spacing:.08em;color:var(--color-text-muted)} .table-wrap{overflow:auto;border:1px solid var(--color-border);border-radius:var(--radius-xl)}
+    @media (max-width: 900px){.shell{grid-template-columns:1fr}.sidebar{display:none}.kpi-grid,.two-col,.cards-2,.form-grid{grid-template-columns:1fr}.search{display:none}}
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand"><div style="width:34px;height:34px;border-radius:12px;border:2px solid var(--color-primary)"></div><div><strong>BD Platform</strong><span>Supabase + FastAPI Starter</span></div></div>
+      <a class="nav-link active" href="#today" data-screen-link>Today Dashboard</a>
+      <a class="nav-link" href="#activity" data-screen-link>Log Activity</a>
+      <a class="nav-link" href="#contacts" data-screen-link>Contacts & Organisations</a>
+      <a class="nav-link" href="#projects" data-screen-link>Projects & Opportunities</a>
+      <a class="nav-link" href="#report" data-screen-link>Weekly Report</a>
+    </aside>
+    <div class="main-wrap">
+      <header class="header">
+        <div><h1>Business Development Control Panel</h1><p>Connected starter for the core operational screens.</p></div>
+        <div class="actions"><input id="apiBase" class="search" value="http://localhost:8000" aria-label="API Base URL" /><button class="btn ghost" id="themeBtn">Theme</button><button class="btn primary" id="loadBtn">Refresh Data</button></div>
+      </header>
+      <main class="main">
+        <div id="successNotice" class="notice success"></div>
+        <div id="errorNotice" class="notice error"></div>
+
+        <section class="screen active" id="today">
+          <div class="section-head"><div><h2>Today Dashboard</h2><p>Live summary from tasks, workflow runs, and weekly meetings.</p></div></div>
+          <div class="grid kpi-grid">
+            <div class="card"><div class="eyebrow">Meetings This Week</div><div class="kpi" id="kpiMeetings">-</div><div class="muted">From weekly report endpoint</div></div>
+            <div class="card"><div class="eyebrow">Open Tasks</div><div class="kpi" id="kpiTasks">-</div><div class="muted">Current open follow-ups</div></div>
+            <div class="card"><div class="eyebrow">Open Projects</div><div class="kpi" id="kpiProjects">-</div><div class="muted">Active or emerging opportunities</div></div>
+            <div class="card"><div class="eyebrow">Workflow Runs</div><div class="kpi" id="kpiRuns">-</div><div class="muted">Recent workflow status count</div></div>
+          </div>
+        </section>
+
+        <section class="screen" id="activity">
+          <div class="section-head"><div><h2>Log Activity</h2><p>Create an activity and optional task in the API.</p></div></div>
+          <div class="grid two-col">
+            <div class="card">
+              <form id="activityForm" class="form-grid">
+                <div class="field"><label for="contact_id">Contact ID</label><input id="contact_id" placeholder="UUID from contacts table" /></div>
+                <div class="field"><label for="organisation_id">Organisation ID</label><input id="organisation_id" placeholder="UUID from organisations table" /></div>
+                <div class="field"><label for="project_id">Project ID</label><input id="project_id" placeholder="Optional UUID" /></div>
+                <div class="field"><label for="activity_type">Activity Type</label><select id="activity_type"><option>meeting</option><option>call</option><option>email</option><option>linkedin_message</option></select></div>
+                <div class="field"><label for="activity_date">Activity Date</label><input id="activity_date" type="datetime-local" /></div>
+                <div class="field"><label for="outcome">Outcome</label><input id="outcome" placeholder="positive / neutral / no response" /></div>
+                <div class="field full"><label for="notes">Notes</label><textarea id="notes" placeholder="Meeting notes, opportunity signal, next action"></textarea></div>
+                <div class="field full"><label for="logged_by">Logged By</label><input id="logged_by" value="BD Lead" /></div>
+                <div class="field full"><button class="btn primary" type="submit">Save Activity</button></div>
+              </form>
+            </div>
+            <div class="card"><div class="eyebrow">API mapping</div><p class="muted">This version posts to the FastAPI activity endpoint. A low-cost approach is to keep inline contact and project creation as separate modal actions after the core activity write is stable.</p></div>
+          </div>
+        </section>
+
+        <section class="screen" id="contacts">
+          <div class="section-head"><div><h2>Contacts & Organisations</h2><p>Loaded from contact and organisation endpoints.</p></div></div>
+          <div class="toolbar"><button class="btn ghost" id="loadContactsBtn">Load Contacts</button><button class="btn ghost" id="loadOrgsBtn">Load Organisations</button></div>
+          <div class="grid cards-2">
+            <div class="card"><h3 style="margin-top:0">Contacts</h3><div id="contactsList" class="muted">No data loaded yet.</div></div>
+            <div class="card"><h3 style="margin-top:0">Organisations</h3><div id="orgsList" class="muted">No data loaded yet.</div></div>
+          </div>
+        </section>
+
+        <section class="screen" id="projects">
+          <div class="section-head"><div><h2>Projects & Opportunities</h2><p>Loaded from the projects endpoint for active opportunity tracking.</p></div></div>
+          <div class="toolbar"><button class="btn ghost" id="loadProjectsBtn">Load Projects</button></div>
+          <div class="card"><div id="projectsList" class="muted">No data loaded yet.</div></div>
+        </section>
+
+        <section class="screen" id="report">
+          <div class="section-head"><div><h2>Weekly Report</h2><p>Meeting-driven report from activities and weekly targets.</p></div></div>
+          <div class="toolbar"><button class="btn ghost" id="loadReportBtn">Load Weekly Report</button></div>
+          <div class="card">
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Week Start</th><th>Meeting Count</th><th>Target</th><th>Gap</th><th>Status</th></tr></thead>
+                <tbody id="reportBody"><tr><td colspan="5">No report loaded yet.</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    const root = document.documentElement;
+    const themeBtn = document.getElementById('themeBtn');
+    let theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    root.setAttribute('data-theme', theme);
+    themeBtn.addEventListener('click', () => { theme = theme === 'dark' ? 'light' : 'dark'; root.setAttribute('data-theme', theme); });
+
+    const links = document.querySelectorAll('[data-screen-link]');
+    const screens = document.querySelectorAll('.screen');
+    function showScreen(id){ screens.forEach(s => s.classList.toggle('active', s.id===id)); links.forEach(l => l.classList.toggle('active', l.getAttribute('href')==='#'+id)); }
+    links.forEach(link => link.addEventListener('click', e => { e.preventDefault(); showScreen(link.getAttribute('href').slice(1)); }));
+    const initial = location.hash ? location.hash.slice(1) : 'today'; if (document.getElementById(initial)) showScreen(initial);
+
+    const apiBaseInput = document.getElementById('apiBase');
+    const successNotice = document.getElementById('successNotice');
+    const errorNotice = document.getElementById('errorNotice');
+    const api = (path) => `${apiBaseInput.value.replace(/\/$/, '')}${path}`;
+    function flash(el, msg){ successNotice.style.display='none'; errorNotice.style.display='none'; el.textContent = msg; el.style.display='block'; }
+
+    async function getJson(path){ const res = await fetch(api(path)); if(!res.ok) throw new Error(`Request failed: ${res.status}`); return res.json(); }
+
+    async function loadDashboard(){
+      try {
+        const [tasks, projects, runs, report] = await Promise.all([
+          getJson('/api/tasks?status=open'),
+          getJson('/api/projects'),
+          getJson('/api/workflow-runs'),
+          getJson('/api/reports/weekly-meetings/current')
+        ]);
+        document.getElementById('kpiTasks').textContent = tasks.length ?? 0;
+        document.getElementById('kpiProjects').textContent = projects.length ?? 0;
+        document.getElementById('kpiRuns').textContent = runs.length ?? 0;
+        document.getElementById('kpiMeetings').textContent = report.meeting_count ?? 0;
+      } catch (err) { flash(errorNotice, err.message); }
+    }
+
+    async function loadContacts(){
+      try { const data = await getJson('/api/contacts'); document.getElementById('contactsList').innerHTML = data.map(x => `<div class="row"><div><strong>${x.full_name}</strong><div class="muted">${x.position_title || 'No title'} · ${x.relationship_type || 'Unclassified'}</div></div><span class="badge success">${x.verification_status || 'unverified'}</span></div>`).join('') || 'No contacts found.'; } catch(err){ flash(errorNotice, err.message); }
+    }
+    async function loadOrgs(){
+      try { const data = await getJson('/api/organisations'); document.getElementById('orgsList').innerHTML = data.map(x => `<div class="row"><div><strong>${x.name}</strong><div class="muted">${x.sector || 'No sector'} · ${x.account_status || 'Unknown status'}</div></div></div>`).join('') || 'No organisations found.'; } catch(err){ flash(errorNotice, err.message); }
+    }
+    async function loadProjects(){
+      try { const data = await getJson('/api/projects'); document.getElementById('projectsList').innerHTML = data.map(x => `<div class="row"><div><strong>${x.name}</strong><div class="muted">${x.status || 'No status'} · ${x.opportunity_signal || 'No signal'} · ${x.strategic_importance || 'No importance set'}</div></div><span class="badge warn">${x.project_type || 'Project'}</span></div>`).join('') || 'No projects found.'; } catch(err){ flash(errorNotice, err.message); }
+    }
+    async function loadReport(){
+      try {
+        const rows = await getJson('/api/reports/weekly-meetings');
+        document.getElementById('reportBody').innerHTML = rows.map(r => `<tr><td>${r.week_start}</td><td>${r.meeting_count}</td><td>${r.meeting_target ?? '-'}</td><td>${r.gap ?? '-'}</td><td>${r.status ?? '-'}</td></tr>`).join('') || '<tr><td colspan="5">No report rows found.</td></tr>';
+      } catch(err){ flash(errorNotice, err.message); }
+    }
+
+    document.getElementById('loadBtn').addEventListener('click', loadDashboard);
+    document.getElementById('loadContactsBtn').addEventListener('click', loadContacts);
+    document.getElementById('loadOrgsBtn').addEventListener('click', loadOrgs);
+    document.getElementById('loadProjectsBtn').addEventListener('click', loadProjects);
+    document.getElementById('loadReportBtn').addEventListener('click', loadReport);
+
+    document.getElementById('activityForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        contact_id: document.getElementById('contact_id').value || null,
+        organisation_id: document.getElementById('organisation_id').value || null,
+        project_id: document.getElementById('project_id').value || null,
+        activity_type: document.getElementById('activity_type').value,
+        activity_date: document.getElementById('activity_date').value ? new Date(document.getElementById('activity_date').value).toISOString() : new Date().toISOString(),
+        outcome: document.getElementById('outcome').value || null,
+        notes: document.getElementById('notes').value || null,
+        logged_by: document.getElementById('logged_by').value || null
+      };
+      try {
+        const res = await fetch(api('/api/activities'), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        if(!res.ok) throw new Error(`Save failed: ${res.status}`);
+        const saved = await res.json();
+        flash(successNotice, `Activity saved: ${saved.id || 'created'}`);
+        loadDashboard();
+      } catch(err){ flash(errorNotice, err.message); }
+    });
+
+    loadDashboard();
+  </script>
+</body>
+</html>

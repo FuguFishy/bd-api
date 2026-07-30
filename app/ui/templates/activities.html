@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ page_title }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/ui/static/crm.css">
+</head>
+<body>
+  <div class="page">
+    <header class="page-header">
+      <div>
+        <h1>Activities</h1>
+        <p>Log meetings, notes, follow-ups, and related activity against contacts, organisations, and projects.</p>
+      </div>
+      <nav class="top-nav">
+        <a href="/ui/">Ops Dashboard</a>
+        <a href="/ui/review-queue">Review Queue</a>
+        <a href="/ui/crm">CRM</a>
+        <a href="/ui/organisations">Organisations</a>
+        <a href="/ui/contacts">Contacts</a>
+        <a href="/ui/projects">Projects</a>
+        <a href="/ui/activities" class="active">Activities</a>
+      </nav>
+    </header>
+
+    <div id="messageBox" class="message hidden"></div>
+
+    <div class="two-column">
+      <section class="panel">
+        <h2>Add activity</h2>
+        <form id="activityForm" class="form-stack">
+          <label for="activityType">Activity type</label>
+          <select id="activityType" name="activity_type" required>
+            <option value="">Select activity type</option>
+            <option value="Meeting">Meeting</option>
+            <option value="Call">Call</option>
+            <option value="Email">Email</option>
+            <option value="Note">Note</option>
+            <option value="Follow-up">Follow-up</option>
+          </select>
+
+          <label for="activityDate">Activity date and time</label>
+          <input id="activityDate" name="activity_date" type="datetime-local" required>
+
+          <label for="contactName">Contact</label>
+          <select id="contactName" name="contact_name">
+            <option value="">Loading contacts...</option>
+          </select>
+
+          <label for="organisationName">Organisation</label>
+          <select id="organisationName" name="organisation_name">
+            <option value="">Loading organisations...</option>
+          </select>
+
+          <label for="projectName">Project</label>
+          <select id="projectName" name="project_name">
+            <option value="">Loading projects...</option>
+          </select>
+
+          <label for="outcome">Outcome</label>
+          <input id="outcome" name="outcome" type="text" placeholder="Positive intro call, follow-up needed">
+
+          <label for="notes">Notes</label>
+          <textarea id="notes" name="notes" rows="6" placeholder="Add useful detail here"></textarea>
+
+          <div class="actions">
+            <button type="submit" class="btn btn-primary">Save activity</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Recent activities</h2>
+          <button id="refreshBtn" class="btn btn-secondary" type="button">Refresh</button>
+        </div>
+        <div id="activityList" class="list-wrap">
+          <div class="empty-state">Loading activities...</div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script src="/ui/static/activities.js"></script>
+</body>
+</html>

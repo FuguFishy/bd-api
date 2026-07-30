@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, Text, Date, ForeignKey
+from sqlalchemy import Column, Integer, Text, Date, DateTime, ForeignKey
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
@@ -59,3 +59,21 @@ class Project(Base):
     organisation_name = Column(Text)
 
     organisation = relationship("Organisation", back_populates="projects")
+
+class Activity(Base):
+    __tablename__ = "activities"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Foreign key IDs — existing columns
+    contact_id = Column(Integer, nullable=True)
+    organisation_id = Column(Integer, nullable=True)
+    project_id = Column(Integer, nullable=True)
+
+    # Core activity metadata
+    activity_type = Column(Text, nullable=False)
+    activity_date = Column(DateTime, nullable=False)
+    outcome = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)
+    logged_by = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=False)
