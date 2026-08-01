@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ page_title or "BD Platform" }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', path='/app.css') }}" />
+  <script defer src="{{ url_for('static', path='/app.js') }}"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">BD</div>
+        <div>
+          <p class="brand-title">BD Platform</p>
+          <p class="brand-subtitle">Operations + CRM</p>
+        </div>
+      </div>
+
+      <nav class="nav" aria-label="Primary">
+        <a href="/ui/" class="nav-link {% if active_page == 'ops' %}is-active{% endif %}">Ops Dashboard</a>
+        <a href="/ui/crm" class="nav-link {% if active_page == 'crm' %}is-active{% endif %}">CRM</a>
+        <a href="/ui/organisations" class="nav-link {% if active_page == 'organisations' %}is-active{% endif %}">Organisations</a>
+        <a href="/ui/contacts" class="nav-link {% if active_page == 'contacts' %}is-active{% endif %}">Contacts</a>
+        <a href="/ui/projects" class="nav-link {% if active_page == 'projects' %}is-active{% endif %}">Projects</a>
+        <a href="/ui/activities" class="nav-link {% if active_page == 'activities' %}is-active{% endif %}">Activities</a>
+        <a href="/ui/tasks" class="nav-link {% if active_page == 'tasks' %}is-active{% endif %}">Tasks</a>
+      </nav>
+
+      <div class="nav-section-label">LinkedIn</div>
+      <nav class="nav" aria-label="LinkedIn">
+        <a href="/ui/linkedin/import" class="nav-link {% if active_page == 'linkedin_import' %}is-active{% endif %}">Import</a>
+        <a href="/ui/linkedin/review" class="nav-link {% if active_page == 'linkedin_review' %}is-active{% endif %}">Review</a>
+      </nav>
+
+      <button class="theme-toggle" type="button" data-theme-toggle aria-label="Toggle theme">
+        Toggle theme
+      </button>
+    </aside>
+
+    <div class="main-shell">
+      <header class="topbar">
+        <div>
+          <p class="topbar-kicker">Internal Operations</p>
+          <h1 class="topbar-title">{{ heading or page_title }}</h1>
+        </div>
+      </header>
+
+      <main id="main-content" class="content">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+</body>
+</html>

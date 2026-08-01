@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section>
+  <h2>Run summary</h2>
+  <ul>
+    <li>Filename: {{ run.filename }}</li>
+    <li>Status: {{ run.status }}</li>
+    <li>Rows received: {{ run.rows_received }}</li>
+    <li>Rows processed: {{ run.rows_processed }}</li>
+    <li>Rows matched: {{ run.rows_matched }}</li>
+    <li>Rows created: {{ run.rows_created }}</li>
+    <li>Rows flagged: {{ run.rows_flagged }}</li>
+    <li>Duplicates prevented: {{ run.rows_duplicates_prevented }}</li>
+  </ul>
+</section>
+
+<section style="margin-top: 2rem;">
+  <h2>Staged rows</h2>
+  <table border="1" cellpadding="8" cellspacing="0">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Company</th>
+        <th>Status</th>
+        <th>Confidence</th>
+        <th>Review</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in staged_rows %}
+      <tr>
+        <td>{{ row.full_name_raw }}</td>
+        <td>{{ row.company_name_raw or "-" }}</td>
+        <td>{{ row.match_status }}</td>
+        <td>{{ row.match_confidence or "-" }}</td>
+        <td>{{ row.review_status }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

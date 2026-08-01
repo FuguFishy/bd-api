@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block content %}
+  {% include "partials/page_header.html" %}
+
+  <section class="stack">
+    <div class="metric-grid">
+      <article class="metric-card">
+        <p class="metric-label">Active Runs</p>
+        <p class="metric-value">{{ summary.active_runs or 0 }}</p>
+        <p class="metric-note">Current workflow and scrape runs in progress.</p>
+      </article>
+
+      <article class="metric-card">
+        <p class="metric-label">Failed in 7 Days</p>
+        <p class="metric-value">{{ summary.failed_runs_7d or 0 }}</p>
+        <p class="metric-note">Recent failures needing operational review.</p>
+      </article>
+
+      <article class="metric-card">
+        <p class="metric-label">LinkedIn Reviews</p>
+        <p class="metric-value">{{ summary.pending_linkedin_reviews or 0 }}</p>
+        <p class="metric-note">Rows waiting for manual review.</p>
+      </article>
+
+      <article class="metric-card">
+        <p class="metric-label">Stale Running</p>
+        <p class="metric-value">{{ summary.stale_running_runs or 0 }}</p>
+        <p class="metric-note">Runs that may be stuck or need follow-up.</p>
+      </article>
+    </div>
+
+    <div class="panel-grid">
+      <section class="panel panel-wide">
+        <div class="panel-header">
+          <h2>Recent Runs</h2>
+          <p>Latest workflow and scrape executions across the platform.</p>
+        </div>
+
+        {% if recent_runs %}
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Source</th>
+                  <th>Name</th>
+                  <th>Status</th>
+                  <th>Started</th>
+                  <th>Duration</th>
+                  <th>Error</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for run in recent_runs %}
+                  <tr>
+                    <td>{{ run.source }}</td>
+                    <td>{{ run.workflow_name }}</td>
+                    <td>
+                      <span class="status-badge status-{{ run.status }}">
+                        {{ run.status }}
+                      </span>
+                    </td>
+                    <td>{{ run.started_at or "—" }}</td>
+                    <td>
+                      {% if run.duration_seconds is not none %}
+                        {{ run.duration_seconds }}s
+                      {% else %}
+                        —
+                      {% endif %}
+                    </td>
+                    <td>{{ run.error_summary or "—" }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">
+            No workflow activity has been recorded yet.
+          </div>
+        {% endif %}
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Attention Items</h2>
+          <p>Operational issues that should be checked first.</p>
+        </div>
+
+        {% if attention_items %}
+          <ul class="attention-list">
+            {% for item in attention_items %}
+              <li class="attention-item attention-{{ item.severity }}">
+                <div>
+                  <p class="attention-label">{{ item.label }}</p>
+                  <p class="attention-severity">{{ item.severity|capitalize }} priority</p>
+                </div>
+                {% if item.href %}
+                  <a class="text-link" href="{{ item.href }}">Open</a>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <div class="empty-state">
+            No current attention items.
+          </div>
+        {% endif %}
+      </section>
+    </div>
+  </section>
+{% endblock %}

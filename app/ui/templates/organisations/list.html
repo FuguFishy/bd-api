@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Organisations{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>Organisations</h1>
+  <p class="muted">Browse account records and open the main operating page for each organisation.</p>
+</div>
+
+<div class="section">
+  <form method="get" action="/ui/organisations">
+    <div class="two-col">
+      <div class="form-row">
+        <label for="q">Search</label>
+        <input id="q" name="q" value="{{ filters.q }}" placeholder="Search by name or short name" />
+      </div>
+
+      <div class="form-row">
+        <label for="sector">Sector</label>
+        <input id="sector" name="sector" value="{{ filters.sector }}" placeholder="Sector" />
+      </div>
+
+      <div class="form-row">
+        <label for="tier">Tier</label>
+        <input id="tier" name="tier" value="{{ filters.tier }}" placeholder="Tier" />
+      </div>
+
+      <div class="form-row">
+        <label for="account_status">Account status</label>
+        <input id="account_status" name="account_status" value="{{ filters.account_status }}" placeholder="Status" />
+      </div>
+    </div>
+
+    <div class="quick-actions">
+      <button type="submit">Apply filters</button>
+      <a class="button button-secondary" href="/ui/organisations">Clear</a>
+      <a class="button button-secondary" href="/ui/organisations/new">New organisation</a>
+    </div>
+  </form>
+</div>
+
+<div class="section">
+  {% if organisations %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Short name</th>
+            <th>Sector</th>
+            <th>Tier</th>
+            <th>Account status</th>
+            <th>Last contact date</th>
+            <th>Updated at</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for org in organisations %}
+          <tr>
+            <td><a href="/ui/organisations/{{ org.id }}">{{ org.name }}</a></td>
+            <td>{{ org.short_name or "" }}</td>
+            <td>{{ org.sector or "" }}</td>
+            <td>{{ org.tier or "" }}</td>
+            <td>{{ org.account_status or "" }}</td>
+            <td>{{ org.last_contact_date or "" }}</td>
+            <td>{{ org.updated_at or "" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">No organisations found for the current filters.</p>
+  {% endif %}
+</div>
+{% endblock %}

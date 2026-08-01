@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+
+{% block content %}
+  {% include "partials/page_header.html" %}
+
+  <section class="stack">
+    <section class="panel">
+      <div class="panel-grid">
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Organisation Details</h2>
+            <p>Core account information for this organisation.</p>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-row">
+              <label>Name</label>
+              <div>{{ organisation.name }}</div>
+            </div>
+
+            <div class="form-row">
+              <label>Short name</label>
+              <div>{{ organisation.short_name or "—" }}</div>
+            </div>
+
+            <div class="form-row">
+              <label>Sector</label>
+              <div>{{ organisation.sector or "—" }}</div>
+            </div>
+
+            <div class="form-row">
+              <label>Tier</label>
+              <div>{{ organisation.tier or "—" }}</div>
+            </div>
+
+            <div class="form-row">
+              <label>Account status</label>
+              <div>{{ organisation.account_status or "—" }}</div>
+            </div>
+
+            <div class="form-row">
+              <label>Notes</label>
+              <div>{{ organisation.notes or "—" }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Quick Actions</h2>
+            <p>Shortcuts into related CRM workflows.</p>
+          </div>
+
+          <div class="page-actions">
+            <a class="button button-primary" href="/ui/contacts?organisation_id={{ organisation.id }}">Add Contact</a>
+            <a class="button button-secondary" href="/ui/projects?organisation_id={{ organisation.id }}">Add Project</a>
+            <a class="button button-secondary" href="/ui/activities?organisation_id={{ organisation.id }}">Log Activity</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Contacts</h2>
+        <p>People currently linked to this organisation.</p>
+      </div>
+
+      {% if contacts %}
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Title</th>
+                <th>Department</th>
+                <th>Email</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for contact in contacts %}
+                <tr>
+                  <td>{{ contact.full_name or ((contact.first_name or "") ~ " " ~ (contact.last_name or "")) }}</td>
+                  <td>{{ contact.position_title or "—" }}</td>
+                  <td>{{ contact.department or "—" }}</td>
+                  <td>{{ contact.email or "—" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-state">
+          No contacts linked to this organisation yet.
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Projects</h2>
+        <p>Open opportunities and delivery work for this organisation.</p>
+      </div>
+
+      {% if projects %}
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for project in projects %}
+                <tr>
+                  <td>{{ project.name }}</td>
+                  <td>{{ project.project_type or "—" }}</td>
+                  <td>{{ project.status or "—" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-state">
+          No projects linked to this organisation yet.
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Recent Activities</h2>
+        <p>Latest interactions tied to this organisation.</p>
+      </div>
+
+      {% if activities %}
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Contact</th>
+                <th>Project</th>
+                <th>Outcome</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for activity in activities %}
+                <tr>
+                  <td>{{ activity.activity_date or "—" }}</td>
+                  <td>{{ activity.activity_type or "—" }}</td>
+                  <td>{{ activity.contact_label or "—" }}</td>
+                  <td>{{ activity.project_label or "—" }}</td>
+                  <td>{{ activity.outcome or "—" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-state">
+          No activities recorded for this organisation yet.
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Tasks</h2>
+        <p>Current follow-up workload for this organisation.</p>
+      </div>
+
+      {% if tasks %}
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Type</th>
+                <th>Reason</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th>Due</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for task in tasks %}
+                <tr>
+                  <td>{{ task.task_type or "—" }}</td>
+                  <td>{{ task.reason or "—" }}</td>
+                  <td>{{ task.priority or "—" }}</td>
+                  <td>{{ task.status or "—" }}</td>
+                  <td>{{ task.due_date or "—" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-state">
+          No tasks linked to this organisation yet.
+        </div>
+      {% endif %}
+    </section>
+  </section>
+{% endblock %}

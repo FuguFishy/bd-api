@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block content %}
+  {% include "partials/page_header.html" %}
+
+  <section class="stack">
+    <div class="panel-grid">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Add Project</h2>
+          <p>Create a project or opportunity linked to an organisation.</p>
+        </div>
+
+        <form class="form-grid" method="post" action="/projects">
+          <div class="form-row">
+            <label for="organisation_id">Organisation</label>
+            <select id="organisation_id" name="organisation_id" required>
+              <option value="">Select organisation</option>
+              {% for organisation in organisations %}
+                <option
+                  value="{{ organisation.id }}"
+                  {% if selected_organisation_id == organisation.id %}selected{% endif %}
+                >
+                  {{ organisation.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-row">
+            <label for="name">Project name</label>
+            <input id="name" name="name" type="text" required />
+          </div>
+
+          <div class="form-row">
+            <label for="project_type">Project type</label>
+            <input id="project_type" name="project_type" type="text" placeholder="Opportunity, Bid, Delivery" />
+          </div>
+
+          <div class="form-row">
+            <label for="status">Status</label>
+            <input id="status" name="status" type="text" placeholder="Open, Active, Won, Lost" />
+          </div>
+
+          <div class="form-row">
+            <label for="description">Description</label>
+            <textarea id="description" name="description"></textarea>
+          </div>
+
+          <div class="page-actions">
+            <button type="submit" class="button button-primary">Create Project</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Why this matters</h2>
+          <p>Projects are the bridge between account activity and revenue opportunity tracking.</p>
+        </div>
+
+        <div class="empty-state">
+          Keep the status values disciplined. Too many custom statuses will make the UI inconsistent and reduce reporting value.
+        </div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Current Projects</h2>
+        <p>Open projects and opportunities already linked to organisations.</p>
+      </div>
+
+      {% if projects %}
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Organisation</th>
+                <th>Type</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for project in projects %}
+                <tr>
+                  <td>{{ project.name }}</td>
+                  <td>{{ project.organisation_name or project.organisation_id or "—" }}</td>
+                  <td>{{ project.project_type or "—" }}</td>
+                  <td>{{ project.status or "—" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-state">
+          No projects have been added yet.
+        </div>
+      {% endif %}
+    </section>
+  </section>
+{% endblock %}

@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block content %}
+  {% include "partials/page_header.html" %}
+
+  <section class="stack">
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Review Queue</h2>
+        <p>Approve staged LinkedIn rows into contacts or skip them with a note.</p>
+      </div>
+
+      {% if pending_rows %}
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Person</th>
+                <th>Company</th>
+                <th>Connected</th>
+                <th>Suggested Organisation</th>
+                <th>Confidence</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in pending_rows %}
+                <tr>
+                  <td>
+                    <strong>{{ row.full_name_raw or row.full_name_normalized or "Unknown" }}</strong>
+                    {% if row.linkedin_profile_url %}
+                      <div>
+                        <a
+                          class="text-link"
+                          href="{{ row.linkedin_profile_url }}"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Profile
+                        </a>
+                      </div>
+                    {% endif %}
+                  </td>
+                  <td>{{ row.company_name_raw or "—" }}</td>
+                  <td>{{ row.connected_on or "—" }}</td>
+                  <td>
+                    {% if row.matched_organisation_name %}
+                      <span class="badge badge-info">{{ row.matched_organisation_name }}</span>
+                    {% else %}
+                      <span class="badge badge-warning">Needs selection</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ row.match_confidence or "—" }}</td>
+                  <td>
+                    <div class="stack" style="gap: 12px;">
+                      <form method="post" action="/ui/linkedin/review/{{ row.id }}/approve" class="form-grid">
+                        <div class="form-row">
+                          <label for="organisation_id_{{ row.id }}">Organisation</label>
+                          <select id="organisation_id_{{ row.id }}" name="organisation_id" required>
+                            <option value="">Select organisation</option>
+                            {% for organisation in organisations %}
+                              <option
+                                value="{{ organisation.id }}"
+                                {% if row.matched_organisation_id == organisation.id %}selected{% endif %}
+                              >
+                                {{ organisation.name }}
+                              </option>
+                            {% endfor %}
+                          </select>
+                        </div>
+
+                        <div class="form-row">
+                          <label for="reviewer_approve_{{ row.id }}">Reviewer</label>
+                          <input
+                            id="reviewer_approve_{{ row.id }}"
+                            type="text"
+                            name="reviewer"
+                            placeholder="Your name"
+                          />
+                        </div>
+
+                        <button type="submit" class="button button-primary">Approve</button>
+                      </form>
+
+                      <form method="post" action="/ui/linkedin/review/{{ row.id }}/skip" class="form-grid">
+                        <div class="form-row">
+                          <label for="reviewer_skip_{{ row.id }}">Reviewer</label>
+                          <input
+                            id="reviewer_skip_{{ row.id }}"
+                            type="text"
+                            name="reviewer"
+                            placeholder="Your name"
+                          />
+                        </div>
+
+                        <div class="form-row">
+                          <label for="note_{{ row.id }}">Skip note</label>
+                          <textarea
+                            id="note_{{ row.id }}"
+                            name="note"
+                            placeholder="Why this was skipped"
+                          ></textarea>
+                        </div>
+
+                        <button type="submit" class="button button-danger">Skip</button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-state">
+          No LinkedIn rows are waiting for review.
+        </div>
+      {% endif %}
+    </section>
+  </section>
+{% endblock %}

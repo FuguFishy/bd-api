@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block content %}
+  {% include "partials/page_header.html" %}
+
+  <section class="stack">
+    <div class="panel-grid">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Log Activity</h2>
+          <p>Record BD actions against an organisation, contact, and project where relevant.</p>
+        </div>
+
+        <form class="form-grid" method="post" action="/activities">
+          <div class="form-row">
+            <label for="organisation_id">Organisation</label>
+            <select id="organisation_id" name="organisation_id">
+              <option value="">Select organisation</option>
+              {% for organisation in organisations %}
+                <option
+                  value="{{ organisation.id }}"
+                  {% if selected_organisation_id == organisation.id %}selected{% endif %}
+                >
+                  {{ organisation.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-row">
+            <label for="contact_id">Contact</label>
+            <select id="contact_id" name="contact_id">
+              <option value="">Select contact</option>
+              {% for contact in contacts %}
+                <option
+                  value="{{ contact.id }}"
+                  {% if selected_contact_id == contact.id %}selected{% endif %}
+                >
+                  {{ contact.full_name or ((contact.first_name or "") ~ " " ~ (contact.last_name or "")) }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-row">
+            <label for="project_id">Project</label>
+            <select id="project_id" name="project_id">
+              <option value="">Select project</option>
+              {% for project in projects %}
+                <option
+                  value="{{ project.id }}"
+                  {% if selected_project_id == project.id %}selected{% endif %}
+                >
+                  {{ project.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-row">
+            <label for="activity_type">Activity type</label>
+            <input id="activity_type" name="activity_type" type="text" placeholder="Call, meeting, email, LinkedIn message" required />
+          </div>
+
+          <div class="form-row">
+            <label for="activity_date">Activity date</label>
+            <input id="activity_date" name="activity_date" type="datetime-local" value="{{ default_activity_date or '' }}" required />
+          </div>
+
+          <div class="form-row">
+            <label for="outcome">Outcome</label>
+            <input id="outcome" name="outcome" type="text" placeholder="Positive response, waiting, no answer" />
+          </div>
+
+          <div class="form-row">
+            <label for="logged_by">Logged by</label>
+            <input id="logged_by" name="logged_by" type="text" placeholder="Your name" />
+          </div>
+
+          <div class="form-row">
+            <label for="notes">Notes</label>
+            <textarea id="notes" name="notes" placeholder="Summary of what happened"></textarea>
+          </div>
+
+          <div class="page-actions">
+            <button type="submit" class="button button-primary">Save Activity</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Logging guidance</h2>
+          <p>Keep entries short, concrete, and useful for follow-up.</p>
+        </div>
+
+        <div class="empty-state">
+          A good activity record should answer three questions clearly: what happened, with whom, and what happens next. Activity log patterns work best when the record keeps a clear outcome and a clear link back to the relevant entity. [web:199][web:201]
+        </div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Recent Activities</h2>
+        <p>Latest interactions already recorded in the CRM.</p>
+      </div>
+
+      {% if activities %}
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Organisation</th>
+                <th>Contact</th>
+                <th>Project</th>
+                <th>Outcome</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for activity in activities %}
+                <tr>
+                  <td>{{ activity.activity_date or "—" }}</td>
+                  <td>{{ activity.activity_type or "—" }}</td>
+                  <td>{{ activity.organisation_name or activity.organisation_id or "—" }}</td>
+                  <td>{{ activity.contact_label or activity.contact_id or "—" }}</td>
+                  <td>{{ activity.project_label or activity.project_id or "—" }}</td>
+                  <td>{{ activity.outcome or "—" }}</td>
+                  <td>{{ activity.notes or "—" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-state">
+          No activities have been logged yet.
+        </div>
+      {% endif %}
+    </section>
+  </section>
+{% endblock %}
