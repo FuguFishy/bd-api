@@ -16,7 +16,7 @@
             <p>Core account information for this organisation.</p>
           </div>
           
-          <form method="post" action="/organisations/{{ organisation.id }}/edit">
+          <form method="post" action="/ui/organisations/{{ organisation.id }}/edit">
             <label for="name">Organisation name</label>
             <input id="name" name="name" type="text" value="{{ organisation.name }}" required>
 

@@ -107,7 +107,7 @@ async def organisation_edit_submit(
         },
     )
     return RedirectResponse(
-        url=f"/organisations/{organisation_id}",
+        url=f"/ui/organisations/{organisation_id}",
         status_code=303,
     )
 
