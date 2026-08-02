@@ -73,7 +73,12 @@ def crm_home(request: Request) -> HTMLResponse:
 
 
 @app.get("/organisations", response_class=HTMLResponse)
-def organisations_page(request: Request) -> HTMLResponse:
+def organisations_page(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    organisations = crud.list_organisations_ui(db)
+
     return render_page(
         request,
         "organisations.html",
@@ -81,8 +86,8 @@ def organisations_page(request: Request) -> HTMLResponse:
         heading="Organisations",
         description="Add organisations manually and browse the current list.",
         active_page="organisations",
+        organisations=organisations,
     )
-
 
 @app.get("/organisations/{organisation_id}", response_class=HTMLResponse)
 def organisation_detail_page(
