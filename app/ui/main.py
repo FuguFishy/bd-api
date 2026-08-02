@@ -56,15 +56,8 @@ def render_page(
 
 
 @app.get("/", response_class=HTMLResponse)
-def ui_home(request: Request) -> HTMLResponse:
-    return render_page(
-        request,
-        "ops_home.html",
-        page_title="BD Ops Dashboard",
-        heading="BD Ops Dashboard",
-        description="SmartJobs runs, review queue, and workflow issues.",
-        active_page="ops",
-    )
+def ui_home() -> RedirectResponse:
+    return RedirectResponse(url="/ui/crm", status_code=302)
 
 
 @app.get("/crm", response_class=HTMLResponse)
