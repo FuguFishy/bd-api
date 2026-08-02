@@ -1,66 +1,25 @@
 {% extends "base.html" %}
 
 {% block content %}
-  {% include "partials/page_header.html" %}
+<section class="card-grid">
+  <a class="card-link" href="/ui/organisations">
+    <h2>Organisations</h2>
+    <p>Create and maintain account records for target clients and partners.</p>
+  </a>
 
-  <section class="stack">
-    <section class="panel">
-      <div class="panel-header">
-        <h2>CRM Workflows</h2>
-        <p>Start with the most common manual operations for BD tracking.</p>
-      </div>
+  <a class="card-link" href="/ui/contacts">
+    <h2>Contacts</h2>
+    <p>Track people, roles, and organisation relationships.</p>
+  </a>
 
-      <div class="panel-grid">
-        <article class="panel">
-          <div class="panel-header">
-            <h2>Organisations</h2>
-            <p>Create and maintain account records for target clients and partners.</p>
-          </div>
-          <div class="page-actions">
-            <a class="button button-primary" href="/ui/organisations">Open Organisations</a>
-          </div>
-        </article>
+  <a class="card-link" href="/ui/projects">
+    <h2>Projects</h2>
+    <p>Manage opportunities, engagements, and linked delivery work.</p>
+  </a>
 
-        <article class="panel">
-          <div class="panel-header">
-            <h2>Contacts</h2>
-            <p>Track people, roles, and organisation relationships.</p>
-          </div>
-          <div class="page-actions">
-            <a class="button button-primary" href="/ui/contacts">Open Contacts</a>
-          </div>
-        </article>
-
-        <article class="panel">
-          <div class="panel-header">
-            <h2>Projects</h2>
-            <p>Manage opportunities, engagements, and linked delivery work.</p>
-          </div>
-          <div class="page-actions">
-            <a class="button button-primary" href="/ui/projects">Open Projects</a>
-          </div>
-        </article>
-
-        <article class="panel">
-          <div class="panel-header">
-            <h2>Activities</h2>
-            <p>Log meetings, outreach, and other BD actions in one place.</p>
-          </div>
-          <div class="page-actions">
-            <a class="button button-primary" href="/ui/activities">Open Activities</a>
-          </div>
-        </article>
-      </div>
-    </section>
-
-    <section class="panel">
-      <div class="panel-header">
-        <h2>Recommended next build</h2>
-        <p>The highest-value next step is to make each CRM page share the same form and list layout.</p>
-      </div>
-      <div class="empty-state">
-        Keep the interaction model simple: one create form, one current list, one detail link pattern.
-      </div>
-    </section>
-  </section>
+  <a class="card-link" href="/ui/activities">
+    <h2>Activities</h2>
+    <p>Log meetings, outreach, and other BD actions in one place.</p>
+  </a>
+</section>
 {% endblock %}
