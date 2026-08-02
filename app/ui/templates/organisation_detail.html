@@ -15,7 +15,17 @@
             <h2>Organisation Details</h2>
             <p>Core account information for this organisation.</p>
           </div>
+          
+          <form method="post" action="/organisations/{{ organisation.id }}/edit">
+            <label for="name">Organisation name</label>
+            <input id="name" name="name" type="text" value="{{ organisation.name }}" required>
 
+            <label for="short_name">Short name</label>
+            <input id="short_name" name="short_name" type="text" value="{{ organisation.short_name or '' }}">
+
+            <button type="submit">Save changes</button>
+         </form>
+           
           <div class="form-grid">
             <div class="form-row">
               <label>Name</label>

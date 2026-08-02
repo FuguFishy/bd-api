@@ -111,6 +111,32 @@ def organisation_detail_page(
         tasks=detail["tasks"],
     )
 
+@app.post("/organisations/{organisation_id}/edit")
+async def organisation_edit_submit(
+    organisation_id: int,
+    name: str = Form(...),
+    short_name: str | None = Form(default=None),
+    sector: str | None = Form(default=None),
+    tier: str | None = Form(default=None),
+    account_status: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+):
+    crud.update_organisation(
+        db,
+        organisation_id,
+        {
+            "name": name,
+            "short_name": short_name,
+            "sector": sector,
+            "tier": tier,
+            "account_status": account_status,
+        },
+    )
+    return RedirectResponse(
+        url=f"/organisations/{organisation_id}",
+        status_code=303,
+    )
+
 
 @app.get("/contacts", response_class=HTMLResponse)
 def contacts_page(
