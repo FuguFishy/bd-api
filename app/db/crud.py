@@ -902,3 +902,24 @@ def list_ops_attention_items(db: Session):
             severity = "medium"
 
         attention.append(
+            {
+                "label": f"{run.workflow_name} · {run.status}",
+                "severity": severity,
+            }
+        )
+
+    linkedin_pending = (
+        db.query(models.LinkedinConnectionStaging)
+        .filter(models.LinkedinConnectionStaging.review_status == "pending")
+        .count()
+    )
+
+    if linkedin_pending:
+        attention.append(
+            {
+                "label": f"{linkedin_pending} LinkedIn rows pending review",
+                "severity": "medium",
+            }
+        )
+
+    return attention
