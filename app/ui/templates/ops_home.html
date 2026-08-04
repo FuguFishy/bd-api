@@ -4,10 +4,9 @@
 <section class="hero-card">
   <div class="hero-copy">
     <p class="eyebrow">BD Ops dashboard</p>
-    <h2>Monitor SmartJobs runs, review queue items, and LinkedIn processing at a glance.</h2>
+    <h2>Monitor SmartJobs, review queue items, and LinkedIn processing from one place.</h2>
     <p class="hero-text">
-      Use this dashboard to check the health of automated workflows, identify issues that need attention,
-      and jump straight into LinkedIn or CRM actions.
+      Use this dashboard to track run health, spot failures early, and jump directly into LinkedIn import and review actions.
     </p>
 
     <div class="hero-actions">
@@ -30,8 +29,8 @@
     <p class="eyebrow">Failed in 7 days</p>
     <h3>Recent failures</h3>
     <p>
-      {{ summary.failed_runs_7d or 0 }} run{{ (summary.failed_runs_7d or 0) != 1 and 's' or '' }} failed in the last 7 days
-      that may need operational review.
+      {{ summary.failed_runs_7d or 0 }} run{{ '' if (summary.failed_runs_7d or 0) == 1 else 's' }}
+      failed in the last 7 days and may need operational review.
     </p>
   </article>
 
@@ -39,7 +38,7 @@
     <p class="eyebrow">LinkedIn reviews</p>
     <h3>Pending rows</h3>
     <p>
-      {{ summary.pending_linkedin_reviews or 0 }} staging row{{ (summary.pending_linkedin_reviews or 0) != 1 and 's' or '' }}
+      {{ summary.pending_linkedin_reviews or 0 }} staging row{{ '' if (summary.pending_linkedin_reviews or 0) == 1 else 's' }}
       waiting for manual review and approval.
     </p>
     <a class="text-link" href="/ui/linkedin/review">Open review queue →</a>
@@ -49,8 +48,8 @@
     <p class="eyebrow">Stale running</p>
     <h3>Potentially stuck runs</h3>
     <p>
-      {{ summary.stale_running_runs or 0 }} run{{ (summary.stale_running_runs or 0) != 1 and 's' or '' }}
-      have been running longer than expected and may need follow-up.
+      {{ summary.stale_running_runs or 0 }} run{{ '' if (summary.stale_running_runs or 0) == 1 else 's' }}
+      have been running longer than expected.
     </p>
   </article>
 
@@ -64,13 +63,11 @@
   </article>
 </section>
 
-<section class="card" style="margin-bottom: 1rem;">
+<section class="card">
   <div class="section-heading">
     <p class="eyebrow">Recent runs</p>
     <h3>Latest workflow and scrape executions</h3>
-    <p class="muted">
-      Recent SmartJobs, workflows, and scrape processes across the platform.
-    </p>
+    <p class="muted">Recent SmartJobs, workflows, and scrape processes across the platform.</p>
   </div>
 
   {% if recent_runs %}
@@ -91,7 +88,11 @@
         <tr>
           <td>{{ run.source }}</td>
           <td>{{ run.workflow_name }}</td>
-          <td>{{ run.status }}</td>
+          <td>
+            <span class="badge badge-{{ run.status|lower }}">
+              {{ run.status }}
+            </span>
+          </td>
           <td>{{ run.started_at or "—" }}</td>
           <td>
             {% if run.duration_seconds is not none %}
@@ -107,34 +108,36 @@
     </table>
   </div>
   {% else %}
-  <p class="muted">No recent runs found.</p>
+  <div class="empty-state">
+    <strong>No recent runs found.</strong>
+    <p class="muted">When SmartJobs runs begin appearing, they’ll show up here.</p>
+  </div>
   {% endif %}
 </section>
 
-<section class="card">
+<section class="card" style="margin-top: 1rem;">
   <div class="section-heading">
     <p class="eyebrow">Attention items</p>
     <h3>Operational issues to check first</h3>
-    <p class="muted">
-      Items raised by monitoring that might block SmartJobs or LinkedIn processing.
-    </p>
+    <p class="muted">Items raised by monitoring that may block SmartJobs or LinkedIn processing.</p>
   </div>
 
   {% if attention_items %}
   <ul class="attention-list">
     {% for item in attention_items %}
-    <li class="attention-item">
-      <div class="attention-label">{{ item.label }}</div>
-      <div class="attention-meta">
-        <span class="badge badge-{{ item.severity|lower }}">
-          {{ item.severity|capitalize }} priority
-        </span>
+    <li class="attention-item attention-{{ item.severity|lower }}">
+      <div>
+        <div class="attention-label">{{ item.label }}</div>
+        <div class="attention-severity">{{ item.severity|capitalize }} priority</div>
       </div>
     </li>
     {% endfor %}
   </ul>
   {% else %}
-  <p class="muted">No open attention items at the moment.</p>
+  <div class="empty-state">
+    <strong>No open attention items.</strong>
+    <p class="muted">Everything looks quiet right now.</p>
+  </div>
   {% endif %}
 </section>
 {% endblock %}

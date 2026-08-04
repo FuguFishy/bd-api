@@ -56,9 +56,25 @@ def render_page(
 
 
 @app.get("/", response_class=HTMLResponse)
-def ui_home() -> RedirectResponse:
-    return RedirectResponse(url="/ui/", status_code=302)
+def ui_home(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    summary = crud.get_ops_dashboard_summary(db)
+    recent_runs = crud.list_recent_workflow_runs(db, limit=20)
+    attention_items = crud.list_ops_attention_items(db)
 
+    return render_page(
+        request,
+        "ops_home.html",
+        page_title="BD Ops Dashboard",
+        heading="BD Ops Dashboard",
+        description="SmartJobs runs, LinkedIn review queue, and workflow issues in one place.",
+        active_page="ops",
+        summary=summary,
+        recent_runs=recent_runs,
+        attention_items=attention_items,
+    )
 
 @app.get("/crm", response_class=HTMLResponse)
 def crm_home(request: Request) -> HTMLResponse:

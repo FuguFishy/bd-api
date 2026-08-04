@@ -105,8 +105,6 @@ textarea {
   border: 1px solid var(--border);
 }
 
-/* Layout */
-
 .app-shell {
   min-height: 100vh;
   display: grid;
@@ -125,8 +123,6 @@ textarea {
 .main-shell {
   min-width: 0;
 }
-
-/* Brand + nav */
 
 .brand {
   display: flex;
@@ -196,8 +192,6 @@ textarea {
   font-weight: 600;
 }
 
-/* Theme toggle */
-
 .theme-toggle {
   margin-top: auto;
   border: 1px solid var(--border);
@@ -214,8 +208,6 @@ textarea {
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
 }
-
-/* Topbar + page header */
 
 .topbar {
   border-bottom: 1px solid var(--border);
@@ -244,6 +236,12 @@ textarea {
   line-height: 1.2;
 }
 
+.page-header h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.2;
+}
+
 .content {
   max-width: var(--content-max);
   padding: var(--space-8);
@@ -265,8 +263,6 @@ textarea {
   color: var(--text-muted);
 }
 
-/* Common layout helpers */
-
 .page-actions {
   display: flex;
   gap: var(--space-3);
@@ -277,8 +273,6 @@ textarea {
   display: grid;
   gap: var(--space-6);
 }
-
-/* Cards and panels */
 
 .card,
 .panel,
@@ -307,8 +301,6 @@ textarea {
   margin: 0;
   color: var(--text-muted);
 }
-
-/* Buttons */
 
 .button,
 button.button,
@@ -354,8 +346,6 @@ a.button {
   font-weight: 600;
 }
 
-/* Forms */
-
 .form-grid {
   display: grid;
   gap: var(--space-4);
@@ -392,10 +382,8 @@ a.button {
   color: var(--text-muted);
 }
 
-/* Tables */
-
-.table-wrap,
-.table-wrapper {
+.table-wrapper,
+.table-wrap {
   overflow-x: auto;
 }
 
@@ -431,8 +419,6 @@ a.button {
 .ops-table tbody tr:hover {
   background: var(--surface-3);
 }
-
-/* Status badges */
 
 .status-badge,
 .badge {
@@ -470,8 +456,6 @@ a.button {
   color: var(--warning);
 }
 
-/* Empty state */
-
 .empty-state {
   padding: var(--space-6);
   border: 1px dashed var(--border-strong);
@@ -479,8 +463,6 @@ a.button {
   color: var(--text-muted);
   background: var(--surface-2);
 }
-
-/* Attention list (ops dashboard) */
 
 .attention-list {
   list-style: none;
@@ -522,8 +504,6 @@ a.button {
   font-size: 0.84rem;
   color: var(--text-muted);
 }
-
-/* Ops hero + dashboard cards */
 
 .hero-card {
   display: grid;
@@ -601,8 +581,6 @@ a.button {
   line-height: 1.6;
 }
 
-/* Dashboard cards + shortcuts */
-
 .dashboard-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -678,8 +656,6 @@ a.button {
 .muted {
   color: var(--text-muted);
 }
-
-/* Responsive tweaks */
 
 @media (max-width: 1100px) {
   .hero-card {

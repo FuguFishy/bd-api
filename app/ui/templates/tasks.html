@@ -1,27 +1,36 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="card">
-  <form method="get" class="stack">
-    <label>
-      Status
-      <select name="status">
+<section class="card" style="margin-bottom: 1rem;">
+  <div class="section-heading">
+    <p class="eyebrow">Tasks</p>
+    <h3>Track open and completed tasks</h3>
+    <p class="muted">Filter by status and complete tasks as you work through the queue.</p>
+  </div>
+
+  <form method="get" class="form-grid" style="max-width: 320px;">
+    <div class="form-row">
+      <label for="status">Status</label>
+      <select id="status" name="status">
         <option value="" {% if not filters.status %}selected{% endif %}>All</option>
         <option value="open" {% if filters.status == "open" %}selected{% endif %}>Open</option>
         <option value="completed" {% if filters.status == "completed" %}selected{% endif %}>Completed</option>
       </select>
-    </label>
-    <button type="submit">Filter</button>
+    </div>
+    <div class="form-row">
+      <button type="submit" class="button button-secondary">Filter</button>
+    </div>
   </form>
 </section>
 
 <section class="card">
   {% if tasks %}
-    <table>
+  <div class="table-wrapper">
+    <table class="data-table">
       <thead>
         <tr>
           <th scope="col">ID</th>
-          <th scope="col">Type</th>
+          <th scope="col">Title</th>
           <th scope="col">Status</th>
           <th scope="col">Priority</th>
           <th scope="col">Due date</th>
@@ -33,11 +42,15 @@
         {% for task in tasks %}
         <tr>
           <td>{{ task.id }}</td>
-          <td>{{ task.task_type }}</td>
-          <td>{{ task.status }}</td>
-          <td>{{ task.priority or "" }}</td>
-          <td>{{ task.due_date or "" }}</td>
-          <td>{{ task.owner or "" }}</td>
+          <td>{{ task.title }}</td>
+          <td>
+            <span class="status-badge status-{{ task.status|lower }}">
+              {{ task.status }}
+            </span>
+          </td>
+          <td>{{ task.priority or "—" }}</td>
+          <td>{{ task.due_date or "—" }}</td>
+          <td>{{ task.owner or "—" }}</td>
           <td>
             {% if task.status != "completed" %}
             <form method="post" action="/ui/tasks/{{ task.id }}/complete">
@@ -45,16 +58,22 @@
               <input type="hidden" name="organisation_id" value="{{ filters.organisation_id or '' }}">
               <input type="hidden" name="contact_id" value="{{ filters.contact_id or '' }}">
               <input type="hidden" name="project_id" value="{{ filters.project_id or '' }}">
-              <button type="submit">Complete</button>
+              <button type="submit" class="button button-secondary">Complete</button>
             </form>
+            {% else %}
+            <span class="muted">Done</span>
             {% endif %}
           </td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
+  </div>
   {% else %}
-    <p>No tasks found.</p>
+  <div class="empty-state">
+    <strong>No tasks found.</strong>
+    <p class="muted">Create tasks from activities or LinkedIn reviews to keep follow-up visible.</p>
+  </div>
   {% endif %}
 </section>
 {% endblock %}
