@@ -122,7 +122,7 @@ def list_organisations(
 ):
     query = db.query(models.Organisation)
 
-    if not include_archived:
+    if hasattr(models.Organisation, "is_archived") and not include_archived:
         query = query.filter(models.Organisation.is_archived.is_(False))
 
     if q:
@@ -190,22 +190,24 @@ def get_organisation_detail_ui(db: Session, organisation_id: int):
     if not organisation:
         return None
 
+    contact_filters = [models.Contact.organisation_id == organisation_id]
+    if hasattr(models.Contact, "is_archived"):
+        contact_filters.append(models.Contact.is_archived.is_(False))
+
     contacts = (
         db.query(models.Contact)
-        .filter(
-            models.Contact.organisation_id == organisation_id,
-            models.Contact.is_archived.is_(False),
-        )
+        .filter(*contact_filters)
         .order_by(models.Contact.last_name.asc(), models.Contact.first_name.asc())
         .all()
     )
 
+    project_filters = [models.Project.organisation_id == organisation_id]
+    if hasattr(models.Project, "is_archived"):
+        project_filters.append(models.Project.is_archived.is_(False))
+
     projects = (
         db.query(models.Project)
-        .filter(
-            models.Project.organisation_id == organisation_id,
-            models.Project.is_archived.is_(False),
-        )
+        .filter(*project_filters)
         .order_by(models.Project.name.asc())
         .all()
     )
@@ -263,7 +265,7 @@ def list_contacts(
 ):
     query = db.query(models.Contact)
 
-    if not include_archived:
+    if hasattr(models.Contact, "is_archived") and not include_archived:
         query = query.filter(models.Contact.is_archived.is_(False))
 
     if organisation_id is not None:
@@ -325,12 +327,13 @@ def get_contact_detail_ui(db: Session, contact_id: int):
         .all()
     )
 
+    project_filters = [models.Project.organisation_id == contact.organisation_id]
+    if hasattr(models.Project, "is_archived"):
+        project_filters.append(models.Project.is_archived.is_(False))
+
     projects = (
         db.query(models.Project)
-        .filter(
-            models.Project.organisation_id == contact.organisation_id,
-            models.Project.is_archived.is_(False),
-        )
+        .filter(*project_filters)
         .order_by(models.Project.name.asc())
         .all()
         if getattr(contact, "organisation_id", None)
@@ -374,7 +377,7 @@ def list_projects(
 ):
     query = db.query(models.Project)
 
-    if not include_archived:
+    if hasattr(models.Project, "is_archived") and not include_archived:
         query = query.filter(models.Project.is_archived.is_(False))
 
     if organisation_id is not None:
@@ -555,7 +558,7 @@ def list_tasks(
     if status:
         query = query.filter(models.Task.status == status)
 
-    if not include_completed:
+    if not include_completed and hasattr(models.Task, "completed_at"):
         query = query.filter(models.Task.completed_at.is_(None))
 
     return query.order_by(models.Task.due_date.asc().nullslast(), models.Task.id.desc()).all()
@@ -586,5 +589,262 @@ def complete_task(db: Session, task_id: int):
         obj.completed_at = datetime.now(timezone.utc)
 
     _commit_or_raise(db, {}, "Unable to complete task")
+    db.refresh(obj)
+    return obj
+
+
+# -------------------------------------------------------------------
+# Entity matches
+# -------------------------------------------------------------------
+
+
+def create_entity_match(db: Session, payload: dict[str, Any] | Any):
+    obj = models.EntityMatch(**_payload_dict(payload))
+    db.add(obj)
+    _commit_or_raise(db, {}, "Unable to create entity match")
+    db.refresh(obj)
+    return obj
+
+
+def list_entity_matches(
+    db: Session,
+    review_status: str | None = None,
+    source_record_type: str | None = None,
+    candidate_entity_type: str | None = None,
+):
+    query = db.query(models.EntityMatch)
+
+    if review_status:
+        query = query.filter(models.EntityMatch.review_status == review_status)
+    if source_record_type:
+        query = query.filter(models.EntityMatch.source_record_type == source_record_type)
+    if candidate_entity_type:
+        query = query.filter(models.EntityMatch.candidate_entity_type == candidate_entity_type)
+
+    return query.order_by(models.EntityMatch.id.desc()).all()
+
+
+def get_entity_match(db: Session, entity_match_id: int):
+    return (
+        db.query(models.EntityMatch)
+        .filter(models.EntityMatch.id == entity_match_id)
+        .first()
+    )
+
+
+def update_entity_match(db: Session, entity_match_id: int, payload: dict[str, Any] | Any):
+    obj = get_entity_match(db, entity_match_id)
+    if not obj:
+        raise HTTPException(status_code=404, detail="Entity match not found")
+
+    _apply_updates(obj, payload)
+    _commit_or_raise(db, {}, "Unable to update entity match")
+    db.refresh(obj)
+    return obj
+
+
+def resolve_entity_match(
+    db: Session,
+    entity_match_id: int,
+    review_status: str,
+    resolved_by: str | None = None,
+    review_notes: str | None = None,
+):
+    obj = get_entity_match(db, entity_match_id)
+    if not obj:
+        raise HTTPException(status_code=404, detail="Entity match not found")
+
+    obj.review_status = review_status
+    obj.resolved_by = resolved_by
+    obj.review_notes = review_notes
+    obj.resolved_at = datetime.now(timezone.utc)
+
+    _commit_or_raise(db, {}, "Unable to resolve entity match")
+    db.refresh(obj)
+    return obj
+
+
+# -------------------------------------------------------------------
+# LinkedIn import runs
+# -------------------------------------------------------------------
+
+
+def create_linkedin_import_run(db: Session, payload: dict[str, Any] | Any):
+    obj = models.LinkedinImportRun(**_payload_dict(payload))
+    db.add(obj)
+    _commit_or_raise(db, {}, "Unable to create LinkedIn import run")
+    db.refresh(obj)
+    return obj
+
+
+def list_linkedin_import_runs(
+    db: Session,
+    status: str | None = None,
+):
+    query = db.query(models.LinkedinImportRun)
+
+    if status:
+        query = query.filter(models.LinkedinImportRun.status == status)
+
+    uploaded_order = getattr(models.LinkedinImportRun, "uploaded_at", None)
+    if uploaded_order is not None:
+        return query.order_by(uploaded_order.desc(), models.LinkedinImportRun.id.desc()).all()
+
+    return query.order_by(models.LinkedinImportRun.id.desc()).all()
+
+
+def get_linkedin_import_run(db: Session, import_run_id: int):
+    return (
+        db.query(models.LinkedinImportRun)
+        .filter(models.LinkedinImportRun.id == import_run_id)
+        .first()
+    )
+
+
+def update_linkedin_import_run(db: Session, import_run_id: int, payload: dict[str, Any] | Any):
+    obj = get_linkedin_import_run(db, import_run_id)
+    if not obj:
+        raise HTTPException(status_code=404, detail="LinkedIn import run not found")
+
+    _apply_updates(obj, payload)
+    _commit_or_raise(db, {}, "Unable to update LinkedIn import run")
+    db.refresh(obj)
+    return obj
+
+
+def mark_linkedin_import_run_status(
+    db: Session,
+    import_run_id: int,
+    status: str,
+    error_summary: str | None = None,
+):
+    obj = get_linkedin_import_run(db, import_run_id)
+    if not obj:
+        raise HTTPException(status_code=404, detail="LinkedIn import run not found")
+
+    obj.status = status
+    obj.error_summary = error_summary
+
+    if status in {"completed", "failed"} and hasattr(obj, "finished_at"):
+        obj.finished_at = datetime.now(timezone.utc)
+
+    _commit_or_raise(db, {}, "Unable to update LinkedIn import run status")
+    db.refresh(obj)
+    return obj
+
+
+# -------------------------------------------------------------------
+# LinkedIn connection staging
+# -------------------------------------------------------------------
+
+
+def create_linkedin_connection_staging_row(db: Session, payload: dict[str, Any] | Any):
+    obj = models.LinkedinConnectionStaging(**_payload_dict(payload))
+    db.add(obj)
+    _commit_or_raise(
+        db,
+        {
+            "uq_linkedin_staging_run_rowhash": "Duplicate LinkedIn row for this import run",
+        },
+        "Unable to create LinkedIn staging row",
+    )
+    db.refresh(obj)
+    return obj
+
+
+def bulk_create_linkedin_connection_staging_rows(
+    db: Session,
+    rows: list[dict[str, Any]],
+):
+    objects = [models.LinkedinConnectionStaging(**row) for row in rows]
+    db.add_all(objects)
+    _commit_or_raise(
+        db,
+        {
+            "uq_linkedin_staging_run_rowhash": "Duplicate LinkedIn row for this import run",
+        },
+        "Unable to create LinkedIn staging rows",
+    )
+    for obj in objects:
+        db.refresh(obj)
+    return objects
+
+
+def list_linkedin_connection_staging_rows(
+    db: Session,
+    import_run_id: int | None = None,
+    match_status: str | None = None,
+    review_status: str | None = None,
+):
+    query = db.query(models.LinkedinConnectionStaging)
+
+    if import_run_id is not None:
+        query = query.filter(models.LinkedinConnectionStaging.import_run_id == import_run_id)
+    if match_status:
+        query = query.filter(models.LinkedinConnectionStaging.match_status == match_status)
+    if review_status:
+        query = query.filter(models.LinkedinConnectionStaging.review_status == review_status)
+
+    return query.order_by(models.LinkedinConnectionStaging.id.asc()).all()
+
+
+def list_pending_linkedin_reviews(db: Session):
+    return (
+        db.query(models.LinkedinConnectionStaging)
+        .filter(models.LinkedinConnectionStaging.review_status == "pending")
+        .order_by(models.LinkedinConnectionStaging.id.asc())
+        .all()
+    )
+
+
+def get_linkedin_connection_staging_row(db: Session, staging_row_id: int):
+    return (
+        db.query(models.LinkedinConnectionStaging)
+        .filter(models.LinkedinConnectionStaging.id == staging_row_id)
+        .first()
+    )
+
+
+def update_linkedin_connection_staging_row(
+    db: Session,
+    staging_row_id: int,
+    payload: dict[str, Any] | Any,
+):
+    obj = get_linkedin_connection_staging_row(db, staging_row_id)
+    if not obj:
+        raise HTTPException(status_code=404, detail="LinkedIn staging row not found")
+
+    _apply_updates(obj, payload)
+    _commit_or_raise(db, {}, "Unable to update LinkedIn staging row")
+    db.refresh(obj)
+    return obj
+
+
+def mark_linkedin_connection_staging_row_processed(
+    db: Session,
+    staging_row_id: int,
+    match_status: str,
+    matched_contact_id: int | None = None,
+    matched_organisation_id: int | None = None,
+    match_confidence: float | None = None,
+    review_status: str | None = None,
+    review_notes: str | None = None,
+):
+    obj = get_linkedin_connection_staging_row(db, staging_row_id)
+    if not obj:
+        raise HTTPException(status_code=404, detail="LinkedIn staging row not found")
+
+    obj.match_status = match_status
+    obj.matched_contact_id = matched_contact_id
+    obj.matched_organisation_id = matched_organisation_id
+    obj.match_confidence = match_confidence
+    obj.processed_at = datetime.now(timezone.utc)
+
+    if review_status is not None:
+        obj.review_status = review_status
+    if review_notes is not None:
+        obj.review_notes = review_notes
+
+    _commit_or_raise(db, {}, "Unable to mark LinkedIn staging row as processed")
     db.refresh(obj)
     return obj
