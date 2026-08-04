@@ -1,29 +1,40 @@
 {% extends "base.html" %}
 
-{% block head %}
-<link rel="stylesheet" href="/ui/static/crm.css" />
-{% endblock %}
-
 {% block content %}
-<section class="card-grid">
-  <a class="card-link" href="/ui/organisations">
-    <h2>Organisations</h2>
-    <p>Create and maintain account records for target clients and partners.</p>
-  </a>
+<section class="stack">
+  <div class="panel">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">CRM Workspace</p>
+        <h2>Start with the most common BD records</h2>
+        <p>
+          Create and maintain account records, contacts, projects, and activity logs
+          from one shared CRM workspace.
+        </p>
+      </div>
+    </div>
 
-  <a class="card-link" href="/ui/contacts">
-    <h2>Contacts</h2>
-    <p>Track people, roles, and organisation relationships.</p>
-  </a>
+    <section class="card-grid">
+      <a class="card nav-card" href="/ui/organisations">
+        <h2>Organisations</h2>
+        <p>Create and maintain account records for target clients and partners.</p>
+      </a>
 
-  <a class="card-link" href="/ui/projects">
-    <h2>Projects</h2>
-    <p>Manage opportunities, engagements, and linked delivery work.</p>
-  </a>
+      <a class="card nav-card" href="/ui/contacts">
+        <h2>Contacts</h2>
+        <p>Track people, roles, and organisation relationships.</p>
+      </a>
 
-  <a class="card-link" href="/ui/activities">
-    <h2>Activities</h2>
-    <p>Log meetings, outreach, and other BD actions in one place.</p>
-  </a>
+      <a class="card nav-card" href="/ui/projects">
+        <h2>Projects</h2>
+        <p>Manage opportunities, engagements, and linked delivery work.</p>
+      </a>
+
+      <a class="card nav-card" href="/ui/activities">
+        <h2>Activities</h2>
+        <p>Log meetings, outreach, and other BD actions in one place.</p>
+      </a>
+    </section>
+  </div>
 </section>
 {% endblock %}

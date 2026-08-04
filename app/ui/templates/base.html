@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{ page_title }} · BD Platform</title>
     <link rel="stylesheet" href="/ui/static/app.css" />
-    <link rel="stylesheet" href="/ui/static/crm.css" />
     {% block extra_css %}{% endblock %}
   </head>
   <body>
@@ -22,9 +21,9 @@
         </div>
 
         <div class="nav-section">
-          <p class="nav-section-label">Internal Operations</p>
-          <nav class="nav" aria-label="Internal Operations">
-            <a href="/ui/" class="nav-link {% if active_page == 'ops' %}is-active{% endif %}">Ops Dashboard</a>
+          <p class="nav-section-label">Home</p>
+          <nav class="nav" aria-label="Home">
+            <a href="/ui/" class="nav-link {% if active_page == 'crm' %}is-active{% endif %}">CRM Home</a>
           </nav>
         </div>
 
@@ -37,14 +36,6 @@
             <a href="/ui/projects" class="nav-link {% if active_page == 'projects' %}is-active{% endif %}">Projects</a>
             <a href="/ui/activities" class="nav-link {% if active_page == 'activities' %}is-active{% endif %}">Activities</a>
             <a href="/ui/tasks" class="nav-link {% if active_page == 'tasks' %}is-active{% endif %}">Tasks</a>
-          </nav>
-        </div>
-
-        <div class="nav-section">
-          <p class="nav-section-label">LinkedIn</p>
-          <nav class="nav" aria-label="LinkedIn">
-            <a href="/ui/linkedin/import" class="nav-link {% if active_page == 'linkedin_import' %}is-active{% endif %}">Import</a>
-            <a href="/ui/linkedin/review" class="nav-link {% if active_page == 'linkedin_review' %}is-active{% endif %}">Review</a>
           </nav>
         </div>
 
@@ -61,7 +52,7 @@
       <div class="main-shell">
         <header class="topbar">
           <div class="content">
-            <p class="topbar-kicker">Internal Operations</p>
+            <p class="topbar-kicker">BD Platform</p>
             <h1 class="topbar-title">{{ heading }}</h1>
           </div>
         </header>
