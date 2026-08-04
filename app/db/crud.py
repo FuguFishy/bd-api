@@ -816,20 +816,55 @@ def mark_linkedin_connection_staging_row_processed(
 # BD Ops dashboard helpers
 # -------------------------------------------------------------------
 
+def _workflow_run_to_dict(run: Any) -> dict[str, Any]:
+    duration_seconds = None
+    if getattr(run, "started_at", None) and getattr(run, "finished_at", None):
+        duration_seconds = int((run.finished_at - run.started_at).total_seconds())
+
+    return {
+        "id": run.id,
+        "workflow_name": run.workflow_name,
+        "run_type": getattr(run, "run_type", None),
+        "started_at": run.started_at,
+        "finished_at": getattr(run, "finished_at", None),
+        "status": run.status,
+        "records_processed": getattr(run, "records_processed", None),
+        "records_flagged": getattr(run, "records_flagged", None),
+        "duration_seconds": duration_seconds,
+        "error_summary": getattr(run, "error_summary", None),
+    }
+
+
+def _linkedin_import_run_to_dict(run: Any) -> dict[str, Any]:
+    duration_seconds = None
+    if getattr(run, "uploaded_at", None) and getattr(run, "finished_at", None):
+        duration_seconds = int((run.finished_at - run.uploaded_at).total_seconds())
+
+    return {
+        "id": run.id,
+        "filename": run.filename,
+        "uploaded_by": getattr(run, "uploaded_by", None),
+        "uploaded_at": run.uploaded_at,
+        "finished_at": getattr(run, "finished_at", None),
+        "status": run.status,
+        "rows_received": getattr(run, "rows_received", None),
+        "rows_processed": getattr(run, "rows_processed", None),
+        "rows_matched": getattr(run, "rows_matched", None),
+        "rows_created": getattr(run, "rows_created", None),
+        "rows_flagged": getattr(run, "rows_flagged", None),
+        "rows_duplicates_prevented": getattr(run, "rows_duplicates_prevented", None),
+        "duration_seconds": duration_seconds,
+        "error_summary": getattr(run, "error_summary", None),
+    }
+
+
 def get_ops_dashboard_summary(db: Session) -> dict[str, int]:
-    active_runs = (
-        db.query(models.WorkflowRun)
-        .filter(models.WorkflowRun.status == "running")
-        .count()
-    )
+    active_runs = db.query(models.WorkflowRun).filter(models.WorkflowRun.status == "running").count()
 
     seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
     failed_runs_7d = (
         db.query(models.WorkflowRun)
-        .filter(
-            models.WorkflowRun.status == "failed",
-            models.WorkflowRun.started_at >= seven_days_ago,
-        )
+        .filter(models.WorkflowRun.status == "failed", models.WorkflowRun.started_at >= seven_days_ago)
         .count()
     )
 
@@ -839,12 +874,25 @@ def get_ops_dashboard_summary(db: Session) -> dict[str, int]:
         .count()
     )
 
-    two_hours_ago = datetime.now(timezone.utc) - timedelta(hours=2)
+    stale_cutoff = datetime.now(timezone.utc) - timedelta(hours=2)
     stale_running_runs = (
         db.query(models.WorkflowRun)
+        .filter(models.WorkflowRun.status == "running", models.WorkflowRun.started_at < stale_cutoff)
+        .count()
+    )
+
+    pending_review_queue_runs = (
+        db.query(models.WorkflowRun)
+        .filter(models.WorkflowRun.run_type == "review_queue", models.WorkflowRun.status != "completed")
+        .count()
+    )
+
+    smartjobs_errors_7d = (
+        db.query(models.WorkflowRun)
         .filter(
-            models.WorkflowRun.status == "running",
-            models.WorkflowRun.started_at < two_hours_ago,
+            models.WorkflowRun.run_type == "smartjobs",
+            models.WorkflowRun.status == "failed",
+            models.WorkflowRun.started_at >= seven_days_ago,
         )
         .count()
     )
@@ -854,34 +902,52 @@ def get_ops_dashboard_summary(db: Session) -> dict[str, int]:
         "failed_runs_7d": failed_runs_7d,
         "pending_linkedin_reviews": pending_linkedin_reviews,
         "stale_running_runs": stale_running_runs,
+        "pending_review_queue_runs": pending_review_queue_runs,
+        "smartjobs_errors_7d": smartjobs_errors_7d,
     }
 
 
-def list_recent_workflow_runs(db: Session, limit: int = 20):
+def list_recent_workflow_runs(db: Session, limit: int = 10):
     runs = (
         db.query(models.WorkflowRun)
         .order_by(models.WorkflowRun.started_at.desc(), models.WorkflowRun.id.desc())
         .limit(limit)
         .all()
     )
+    return [_workflow_run_to_dict(run) for run in runs]
 
-    result = []
-    for run in runs:
-        duration_seconds = None
-        if getattr(run, "started_at", None) and getattr(run, "finished_at", None):
-            duration_seconds = int((run.finished_at - run.started_at).total_seconds())
 
-        result.append(
-            {
-                "source": "workflow",
-                "workflow_name": run.workflow_name,
-                "status": run.status,
-                "started_at": run.started_at,
-                "duration_seconds": duration_seconds,
-                "error_summary": run.error_summary,
-            }
-        )
-    return result
+def list_workflow_runs_by_type(db: Session, run_type: str, limit: int = 8):
+    runs = (
+        db.query(models.WorkflowRun)
+        .filter(models.WorkflowRun.run_type == run_type)
+        .order_by(models.WorkflowRun.started_at.desc(), models.WorkflowRun.id.desc())
+        .limit(limit)
+        .all()
+    )
+    return [_workflow_run_to_dict(run) for run in runs]
+
+
+def list_smartjobs_runs(db: Session, limit: int = 8):
+    return list_workflow_runs_by_type(db, run_type="smartjobs", limit=limit)
+
+
+def list_review_queue_runs(db: Session, limit: int = 8):
+    return list_workflow_runs_by_type(db, run_type="review_queue", limit=limit)
+
+
+def list_linkedin_import_runs_ui(db: Session, limit: int = 8):
+    runs = (
+        db.query(models.LinkedinImportRun)
+        .order_by(models.LinkedinImportRun.uploaded_at.desc(), models.LinkedinImportRun.id.desc())
+        .limit(limit)
+        .all()
+    )
+    return [_linkedin_import_run_to_dict(run) for run in runs]
+
+
+def list_pending_linkedin_reviews(db: Session):
+    return list_linkedin_connection_staging_rows(db, review_status="pending")
 
 
 def list_ops_attention_items(db: Session):
@@ -913,7 +979,6 @@ def list_ops_attention_items(db: Session):
         .filter(models.LinkedinConnectionStaging.review_status == "pending")
         .count()
     )
-
     if linkedin_pending:
         attention.append(
             {

@@ -56,37 +56,28 @@ def render_page(
 
 
 @app.get("/", response_class=HTMLResponse)
-def ui_home(
-    request: Request,
-    db: Session = Depends(get_db),
-) -> HTMLResponse:
+def ui_home(request: Request, db: Session = Depends(get_db)):
     summary = crud.get_ops_dashboard_summary(db)
-    recent_runs = crud.list_recent_workflow_runs(db, limit=20)
+    smartjobs_runs = crud.list_smartjobs_runs(db, limit=8)
+    review_queue_runs = crud.list_review_queue_runs(db, limit=8)
+    linkedin_import_runs = crud.list_linkedin_import_runs_ui(db, limit=8)
     attention_items = crud.list_ops_attention_items(db)
 
-    return render_page(
-        request,
-        "ops_home.html",
-        page_title="BD Ops Dashboard",
-        heading="BD Ops Dashboard",
-        description="SmartJobs runs, LinkedIn review queue, and workflow issues in one place.",
-        active_page="ops",
-        summary=summary,
-        recent_runs=recent_runs,
-        attention_items=attention_items,
+    return templates.TemplateResponse(
+        request=request,
+        name="ops_home.html",
+        context={
+            "page_title": "BD Ops Dashboard",
+            "heading": "BD Ops Dashboard",
+            "description": "SmartJobs runs, review queue, and workflow issues.",
+            "active_page": "ops",
+            "summary": summary,
+            "smartjobs_runs": smartjobs_runs,
+            "review_queue_runs": review_queue_runs,
+            "linkedin_import_runs": linkedin_import_runs,
+            "attention_items": attention_items,
+        },
     )
-
-@app.get("/crm", response_class=HTMLResponse)
-def crm_home(request: Request) -> HTMLResponse:
-    return render_page(
-        request,
-        "crm_home.html",
-        page_title="CRM",
-        heading="CRM",
-        description="Manual entry and browsing for organisations, contacts, projects, and notes.",
-        active_page="crm",
-    )
-
 
 @app.get("/organisations", response_class=HTMLResponse)
 def organisations_page(
