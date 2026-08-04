@@ -24,7 +24,11 @@ def _payload_dict(payload: Any) -> dict[str, Any]:
     raise TypeError("Unsupported payload type")
 
 
-def _commit_or_raise(db: Session, duplicate_map: dict[str, str], default_message: str) -> None:
+def _commit_or_raise(
+    db: Session,
+    duplicate_map: dict[str, str],
+    default_message: str,
+) -> None:
     try:
         db.commit()
     except IntegrityError as e:
@@ -99,7 +103,6 @@ def _enrich_activities_with_labels(db: Session, activities: list[Any]) -> list[A
 # Organisations
 # -------------------------------------------------------------------
 
-
 def create_organisation(db: Session, payload: OrganisationCreate):
     obj = models.Organisation(**_payload_dict(payload))
     db.add(obj)
@@ -118,12 +121,8 @@ def list_organisations(
     sector: str | None = None,
     tier: str | None = None,
     account_status: str | None = None,
-    include_archived: bool = False,
 ):
     query = db.query(models.Organisation)
-
-    if hasattr(models.Organisation, "is_archived") and not include_archived:
-        query = query.filter(models.Organisation.is_archived.is_(False))
 
     if q:
         like = f"%{q.strip()}%"
@@ -150,7 +149,6 @@ def list_organisations_ui(
     sector: str | None = None,
     tier: str | None = None,
     account_status: str | None = None,
-    include_archived: bool = False,
 ):
     return list_organisations(
         db=db,
@@ -158,7 +156,6 @@ def list_organisations_ui(
         sector=sector,
         tier=tier,
         account_status=account_status,
-        include_archived=include_archived,
     )
 
 
@@ -190,24 +187,16 @@ def get_organisation_detail_ui(db: Session, organisation_id: int):
     if not organisation:
         return None
 
-    contact_filters = [models.Contact.organisation_id == organisation_id]
-    if hasattr(models.Contact, "is_archived"):
-        contact_filters.append(models.Contact.is_archived.is_(False))
-
     contacts = (
         db.query(models.Contact)
-        .filter(*contact_filters)
+        .filter(models.Contact.organisation_id == organisation_id)
         .order_by(models.Contact.last_name.asc(), models.Contact.first_name.asc())
         .all()
     )
 
-    project_filters = [models.Project.organisation_id == organisation_id]
-    if hasattr(models.Project, "is_archived"):
-        project_filters.append(models.Project.is_archived.is_(False))
-
     projects = (
         db.query(models.Project)
-        .filter(*project_filters)
+        .filter(models.Project.organisation_id == organisation_id)
         .order_by(models.Project.name.asc())
         .all()
     )
@@ -242,7 +231,6 @@ def get_organisation_detail_ui(db: Session, organisation_id: int):
 # Contacts
 # -------------------------------------------------------------------
 
-
 def create_contact(db: Session, payload: ContactCreate):
     obj = models.Contact(**_payload_dict(payload))
     db.add(obj)
@@ -261,12 +249,8 @@ def list_contacts(
     db: Session,
     q: str | None = None,
     organisation_id: int | None = None,
-    include_archived: bool = False,
 ):
     query = db.query(models.Contact)
-
-    if hasattr(models.Contact, "is_archived") and not include_archived:
-        query = query.filter(models.Contact.is_archived.is_(False))
 
     if organisation_id is not None:
         query = query.filter(models.Contact.organisation_id == organisation_id)
@@ -327,13 +311,9 @@ def get_contact_detail_ui(db: Session, contact_id: int):
         .all()
     )
 
-    project_filters = [models.Project.organisation_id == contact.organisation_id]
-    if hasattr(models.Project, "is_archived"):
-        project_filters.append(models.Project.is_archived.is_(False))
-
     projects = (
         db.query(models.Project)
-        .filter(*project_filters)
+        .filter(models.Project.organisation_id == contact.organisation_id)
         .order_by(models.Project.name.asc())
         .all()
         if getattr(contact, "organisation_id", None)
@@ -351,7 +331,6 @@ def get_contact_detail_ui(db: Session, contact_id: int):
 # -------------------------------------------------------------------
 # Projects
 # -------------------------------------------------------------------
-
 
 def create_project(db: Session, payload: ProjectCreate):
     obj = models.Project(**_payload_dict(payload))
@@ -373,12 +352,8 @@ def list_projects(
     q: str | None = None,
     organisation_id: int | None = None,
     status: str | None = None,
-    include_archived: bool = False,
 ):
     query = db.query(models.Project)
-
-    if hasattr(models.Project, "is_archived") and not include_archived:
-        query = query.filter(models.Project.is_archived.is_(False))
 
     if organisation_id is not None:
         query = query.filter(models.Project.organisation_id == organisation_id)
@@ -459,7 +434,6 @@ def get_project_detail_ui(db: Session, project_id: int):
 # Activities
 # -------------------------------------------------------------------
 
-
 def create_activity(db: Session, payload: ActivityCreate):
     obj = models.Activity(**_payload_dict(payload))
     db.add(obj)
@@ -529,7 +503,6 @@ def get_activity(db: Session, activity_id: int):
 # Tasks
 # -------------------------------------------------------------------
 
-
 def create_task(db: Session, payload: TaskCreate):
     obj = models.Task(**_payload_dict(payload))
     db.add(obj)
@@ -558,7 +531,7 @@ def list_tasks(
     if status:
         query = query.filter(models.Task.status == status)
 
-    if not include_completed and hasattr(models.Task, "completed_at"):
+    if not include_completed:
         query = query.filter(models.Task.completed_at.is_(None))
 
     return query.order_by(models.Task.due_date.asc().nullslast(), models.Task.id.desc()).all()
@@ -596,7 +569,6 @@ def complete_task(db: Session, task_id: int):
 # -------------------------------------------------------------------
 # Entity matches
 # -------------------------------------------------------------------
-
 
 def create_entity_match(db: Session, payload: dict[str, Any] | Any):
     obj = models.EntityMatch(**_payload_dict(payload))
@@ -668,7 +640,6 @@ def resolve_entity_match(
 # LinkedIn import runs
 # -------------------------------------------------------------------
 
-
 def create_linkedin_import_run(db: Session, payload: dict[str, Any] | Any):
     obj = models.LinkedinImportRun(**_payload_dict(payload))
     db.add(obj)
@@ -686,11 +657,10 @@ def list_linkedin_import_runs(
     if status:
         query = query.filter(models.LinkedinImportRun.status == status)
 
-    uploaded_order = getattr(models.LinkedinImportRun, "uploaded_at", None)
-    if uploaded_order is not None:
-        return query.order_by(uploaded_order.desc(), models.LinkedinImportRun.id.desc()).all()
-
-    return query.order_by(models.LinkedinImportRun.id.desc()).all()
+    return query.order_by(
+        models.LinkedinImportRun.uploaded_at.desc(),
+        models.LinkedinImportRun.id.desc(),
+    ).all()
 
 
 def get_linkedin_import_run(db: Session, import_run_id: int):
@@ -737,7 +707,6 @@ def mark_linkedin_import_run_status(
 # LinkedIn connection staging
 # -------------------------------------------------------------------
 
-
 def create_linkedin_connection_staging_row(db: Session, payload: dict[str, Any] | Any):
     obj = models.LinkedinConnectionStaging(**_payload_dict(payload))
     db.add(obj)
@@ -765,8 +734,6 @@ def bulk_create_linkedin_connection_staging_rows(
         },
         "Unable to create LinkedIn staging rows",
     )
-    for obj in objects:
-        db.refresh(obj)
     return objects
 
 
@@ -789,12 +756,7 @@ def list_linkedin_connection_staging_rows(
 
 
 def list_pending_linkedin_reviews(db: Session):
-    return (
-        db.query(models.LinkedinConnectionStaging)
-        .filter(models.LinkedinConnectionStaging.review_status == "pending")
-        .order_by(models.LinkedinConnectionStaging.id.asc())
-        .all()
-    )
+    return list_linkedin_connection_staging_rows(db, review_status="pending")
 
 
 def get_linkedin_connection_staging_row(db: Session, staging_row_id: int):
