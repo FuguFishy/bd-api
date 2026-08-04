@@ -28,7 +28,6 @@ class Organisation(Base):
     account_status = Column(Text)
     notes = Column(Text)
     last_contact_date = Column(Date)
-    is_archived = Column(Boolean, nullable=False, server_default=false())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -51,7 +50,6 @@ class Contact(Base):
     verification_status = Column(Text)
     notes = Column(Text)
     organisation_name = Column(Text)
-    is_archived = Column(Boolean, nullable=False, server_default=false())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -71,7 +69,6 @@ class Project(Base):
     end_date = Column(Date)
     notes = Column(Text)
     organisation_name = Column(Text)
-    is_archived = Column(Boolean, nullable=False, server_default=false())
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now())
 
