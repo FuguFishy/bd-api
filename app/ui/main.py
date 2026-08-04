@@ -57,7 +57,7 @@ def render_page(
 
 @app.get("/", response_class=HTMLResponse)
 def ui_home() -> RedirectResponse:
-    return RedirectResponse(url="/ui/crm", status_code=302)
+    return RedirectResponse(url="/ui/", status_code=302)
 
 
 @app.get("/crm", response_class=HTMLResponse)
@@ -88,6 +88,7 @@ def organisations_page(
         active_page="organisations",
         organisations=organisations,
     )
+
 
 @app.get("/organisations/{organisation_id}", response_class=HTMLResponse)
 def organisation_detail_page(
@@ -230,6 +231,7 @@ def tasks_page(
         },
     )
 
+
 @app.post("/tasks/{task_id}/complete")
 def task_complete(
     task_id: int,
@@ -256,6 +258,7 @@ def task_complete(
         redirect_url = f"{redirect_url}?{'&'.join(params)}"
 
     return RedirectResponse(url=redirect_url, status_code=303)
+
 
 @app.get("/linkedin/import", response_class=HTMLResponse)
 def linkedin_import_page(request: Request) -> HTMLResponse:
