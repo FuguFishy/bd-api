@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import HTTPException
@@ -811,20 +811,18 @@ def mark_linkedin_connection_staging_row_processed(
     db.refresh(obj)
     return obj
 
+
 # -------------------------------------------------------------------
 # BD Ops dashboard helpers
 # -------------------------------------------------------------------
 
 def get_ops_dashboard_summary(db: Session) -> dict[str, int]:
-    """Aggregate counts for the BD Ops dashboard."""
-    # Active runs = WorkflowRun rows with status 'running'
     active_runs = (
         db.query(models.WorkflowRun)
         .filter(models.WorkflowRun.status == "running")
         .count()
     )
 
-    # Failed in 7 days = WorkflowRun rows with status 'failed' and started_at in last 7 days
     seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
     failed_runs_7d = (
         db.query(models.WorkflowRun)
@@ -835,12 +833,12 @@ def get_ops_dashboard_summary(db: Session) -> dict[str, int]:
         .count()
     )
 
-    # Pending LinkedIn reviews = existing helper
-    pending_linkedin_reviews = db.query(models.LinkedinConnectionStaging).filter(
-        models.LinkedinConnectionStaging.review_status == "pending"
-    ).count()
+    pending_linkedin_reviews = (
+        db.query(models.LinkedinConnectionStaging)
+        .filter(models.LinkedinConnectionStaging.review_status == "pending")
+        .count()
+    )
 
-    # Stale running = runs with status 'running' and started_at older than some threshold (e.g. 2 hours)
     two_hours_ago = datetime.now(timezone.utc) - timedelta(hours=2)
     stale_running_runs = (
         db.query(models.WorkflowRun)
@@ -860,21 +858,33 @@ def get_ops_dashboard_summary(db: Session) -> dict[str, int]:
 
 
 def list_recent_workflow_runs(db: Session, limit: int = 20):
-    """Recent workflow/scrape runs for the Ops dashboard."""
-    return (
+    runs = (
         db.query(models.WorkflowRun)
         .order_by(models.WorkflowRun.started_at.desc(), models.WorkflowRun.id.desc())
         .limit(limit)
         .all()
     )
 
+    result = []
+    for run in runs:
+        duration_seconds = None
+        if getattr(run, "started_at", None) and getattr(run, "finished_at", None):
+            duration_seconds = int((run.finished_at - run.started_at).total_seconds())
+
+        result.append(
+            {
+                "source": "workflow",
+                "workflow_name": run.workflow_name,
+                "status": run.status,
+                "started_at": run.started_at,
+                "duration_seconds": duration_seconds,
+                "error_summary": run.error_summary,
+            }
+        )
+    return result
+
 
 def list_ops_attention_items(db: Session):
-    """Simple attention items for the Ops dashboard.
-
-    This version just surfaces runs with status != 'completed' as 'medium' priority.
-    You can refine this logic later.
-    """
     rows = (
         db.query(models.WorkflowRun)
         .filter(models.WorkflowRun.status != "completed")
@@ -885,10 +895,10 @@ def list_ops_attention_items(db: Session):
 
     attention = []
     for run in rows:
+        severity = "medium"
+        if run.status == "failed":
+            severity = "high"
+        elif run.status == "running":
+            severity = "medium"
+
         attention.append(
-            {
-                "label": f"{run.source or 'workflow'} · {run.workflow_name or 'Unnamed'} ({run.status})",
-                "severity": "medium",
-            }
-        )
-    return attention
