@@ -810,3 +810,85 @@ def mark_linkedin_connection_staging_row_processed(
     _commit_or_raise(db, {}, "Unable to mark LinkedIn staging row as processed")
     db.refresh(obj)
     return obj
+
+# -------------------------------------------------------------------
+# BD Ops dashboard helpers
+# -------------------------------------------------------------------
+
+def get_ops_dashboard_summary(db: Session) -> dict[str, int]:
+    """Aggregate counts for the BD Ops dashboard."""
+    # Active runs = WorkflowRun rows with status 'running'
+    active_runs = (
+        db.query(models.WorkflowRun)
+        .filter(models.WorkflowRun.status == "running")
+        .count()
+    )
+
+    # Failed in 7 days = WorkflowRun rows with status 'failed' and started_at in last 7 days
+    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    failed_runs_7d = (
+        db.query(models.WorkflowRun)
+        .filter(
+            models.WorkflowRun.status == "failed",
+            models.WorkflowRun.started_at >= seven_days_ago,
+        )
+        .count()
+    )
+
+    # Pending LinkedIn reviews = existing helper
+    pending_linkedin_reviews = db.query(models.LinkedinConnectionStaging).filter(
+        models.LinkedinConnectionStaging.review_status == "pending"
+    ).count()
+
+    # Stale running = runs with status 'running' and started_at older than some threshold (e.g. 2 hours)
+    two_hours_ago = datetime.now(timezone.utc) - timedelta(hours=2)
+    stale_running_runs = (
+        db.query(models.WorkflowRun)
+        .filter(
+            models.WorkflowRun.status == "running",
+            models.WorkflowRun.started_at < two_hours_ago,
+        )
+        .count()
+    )
+
+    return {
+        "active_runs": active_runs,
+        "failed_runs_7d": failed_runs_7d,
+        "pending_linkedin_reviews": pending_linkedin_reviews,
+        "stale_running_runs": stale_running_runs,
+    }
+
+
+def list_recent_workflow_runs(db: Session, limit: int = 20):
+    """Recent workflow/scrape runs for the Ops dashboard."""
+    return (
+        db.query(models.WorkflowRun)
+        .order_by(models.WorkflowRun.started_at.desc(), models.WorkflowRun.id.desc())
+        .limit(limit)
+        .all()
+    )
+
+
+def list_ops_attention_items(db: Session):
+    """Simple attention items for the Ops dashboard.
+
+    This version just surfaces runs with status != 'completed' as 'medium' priority.
+    You can refine this logic later.
+    """
+    rows = (
+        db.query(models.WorkflowRun)
+        .filter(models.WorkflowRun.status != "completed")
+        .order_by(models.WorkflowRun.started_at.desc())
+        .limit(10)
+        .all()
+    )
+
+    attention = []
+    for run in rows:
+        attention.append(
+            {
+                "label": f"{run.source or 'workflow'} · {run.workflow_name or 'Unnamed'} ({run.status})",
+                "severity": "medium",
+            }
+        )
+    return attention
