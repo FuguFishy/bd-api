@@ -192,17 +192,70 @@ def activities_page(
 
 
 @app.get("/tasks", response_class=HTMLResponse)
-def tasks_page(request: Request) -> HTMLResponse:
+def tasks_page(
+    request: Request,
+    status: str | None = None,
+    organisation_id: int | None = None,
+    contact_id: int | None = None,
+    project_id: int | None = None,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    tasks = crud.list_tasks(
+        db,
+        status=status,
+        organisation_id=organisation_id,
+        contact_id=contact_id,
+        project_id=project_id,
+    )
+    organisations = crud.list_organisations(db)
+    contacts = crud.list_contacts(db)
+    projects = crud.list_projects(db)
+
     return render_page(
         request,
-        "placeholder.html",
+        "tasks.html",
         page_title="Tasks",
         heading="Tasks",
-        description="Task workflow screens are the next build slice.",
+        description="Track open and completed tasks.",
         active_page="tasks",
-        feature_name="Tasks",
+        tasks=tasks,
+        organisations=organisations,
+        contacts=contacts,
+        projects=projects,
+        filters={
+            "status": status or "",
+            "organisation_id": organisation_id,
+            "contact_id": contact_id,
+            "project_id": project_id,
+        },
     )
 
+@app.post("/tasks/{task_id}/complete")
+def task_complete(
+    task_id: int,
+    status: str | None = Form(default=None),
+    organisation_id: int | None = Form(default=None),
+    contact_id: int | None = Form(default=None),
+    project_id: int | None = Form(default=None),
+    db: Session = Depends(get_db),
+):
+    crud.complete_task(db, task_id)
+
+    redirect_url = "/ui/tasks"
+    params = []
+    if status:
+        params.append(f"status={status}")
+    if organisation_id:
+        params.append(f"organisation_id={organisation_id}")
+    if contact_id:
+        params.append(f"contact_id={contact_id}")
+    if project_id:
+        params.append(f"project_id={project_id}")
+
+    if params:
+        redirect_url = f"{redirect_url}?{'&'.join(params)}"
+
+    return RedirectResponse(url=redirect_url, status_code=303)
 
 @app.get("/linkedin/import", response_class=HTMLResponse)
 def linkedin_import_page(request: Request) -> HTMLResponse:

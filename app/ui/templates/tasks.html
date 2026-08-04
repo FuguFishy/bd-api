@@ -1,126 +1,60 @@
 {% extends "base.html" %}
 
-{% block head %}
-<link rel="stylesheet" href="/ui/static/crm.css" />
-{% endblock %}
-
 {% block content %}
-<section class="page-header">
-  <h1>{{ heading }}</h1>
-  <p>{{ description }}</p>
-</section>
-
-<section class="filters">
-  <form method="get" action="/ui/tasks" class="filter-form">
+<section class="card">
+  <form method="get" class="stack">
     <label>
       Status
       <select name="status">
-        <option value="" {% if not selected_status %}selected{% endif %}>All</option>
-        <option value="open" {% if selected_status == "open" %}selected{% endif %}>Open</option>
-        <option value="in_progress" {% if selected_status == "in_progress" %}selected{% endif %}>In progress</option>
-        <option value="completed" {% if selected_status == "completed" %}selected{% endif %}>Completed</option>
+        <option value="" {% if not filters.status %}selected{% endif %}>All</option>
+        <option value="open" {% if filters.status == "open" %}selected{% endif %}>Open</option>
+        <option value="completed" {% if filters.status == "completed" %}selected{% endif %}>Completed</option>
       </select>
     </label>
-
-    <label>
-      Organisation
-      <select name="organisation_id">
-        <option value="">All</option>
-        {% for org in organisations %}
-        <option value="{{ org.id }}" {% if selected_organisation_id == org.id %}selected{% endif %}>{{ org.name }}</option>
-        {% endfor %}
-      </select>
-    </label>
-
-    <label>
-      Contact
-      <select name="contact_id">
-        <option value="">All</option>
-        {% for contact in contacts %}
-        <option value="{{ contact.id }}" {% if selected_contact_id == contact.id %}selected{% endif %}>{{ contact.full_name or contact.first_name ~ " " ~ contact.last_name }}</option>
-        {% endfor %}
-      </select>
-    </label>
-
-    <label>
-      Project
-      <select name="project_id">
-        <option value="">All</option>
-        {% for project in projects %}
-        <option value="{{ project.id }}" {% if selected_project_id == project.id %}selected{% endif %}>{{ project.name }}</option>
-        {% endfor %}
-      </select>
-    </label>
-
-    <label class="checkbox-label">
-      <input type="checkbox" name="include_completed" value="true" {% if include_completed %}checked{% endif %}>
-      Include completed
-    </label>
-
-    <button type="submit">Apply filters</button>
+    <button type="submit">Filter</button>
   </form>
 </section>
 
-<section class="summary-grid">
-  <article class="summary-card">
-    <h2>Overdue</h2>
-    <p class="summary-number">{{ overdue_tasks|length }}</p>
-  </article>
-  <article class="summary-card">
-    <h2>Due in 7 days</h2>
-    <p class="summary-number">{{ due_soon_tasks|length }}</p>
-  </article>
-  <article class="summary-card">
-    <h2>Total shown</h2>
-    <p class="summary-number">{{ tasks|length }}</p>
-  </article>
-</section>
-
-<section class="table-section">
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th>Task</th>
-        <th>Status</th>
-        <th>Due date</th>
-        <th>Organisation</th>
-        <th>Contact</th>
-        <th>Project</th>
-        <th>Owner</th>
-        <th>Action</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for task in tasks %}
-      <tr>
-        <td>
-          <strong>{{ task.task_type }}</strong>
-          {% if task.reason %}
-          <div class="muted">{{ task.reason }}</div>
-          {% endif %}
-        </td>
-        <td>{{ task.status or "—" }}</td>
-        <td>{{ task.due_date or "—" }}</td>
-        <td>{{ task.organisation_name or "—" }}</td>
-        <td>{{ task.contact_label or "—" }}</td>
-        <td>{{ task.project_label or "—" }}</td>
-        <td>{{ task.owner or "—" }}</td>
-        <td>
-          {% if task.completed_at %}
-          <span class="status-done">Done</span>
-          {% else %}
-          <form method="post" action="/ui/tasks/{{ task.id }}/complete">
-            <button type="submit">Mark complete</button>
-          </form>
-          {% endif %}
-        </td>
-      </tr>
-      {% else %}
-      <tr>
-        <td colspan="8">No tasks found for the current filters.</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+<section class="card">
+  {% if tasks %}
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">ID</th>
+          <th scope="col">Type</th>
+          <th scope="col">Status</th>
+          <th scope="col">Priority</th>
+          <th scope="col">Due date</th>
+          <th scope="col">Owner</th>
+          <th scope="col">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for task in tasks %}
+        <tr>
+          <td>{{ task.id }}</td>
+          <td>{{ task.task_type }}</td>
+          <td>{{ task.status }}</td>
+          <td>{{ task.priority or "" }}</td>
+          <td>{{ task.due_date or "" }}</td>
+          <td>{{ task.owner or "" }}</td>
+          <td>
+            {% if task.status != "completed" %}
+            <form method="post" action="/ui/tasks/{{ task.id }}/complete">
+              <input type="hidden" name="status" value="{{ filters.status }}">
+              <input type="hidden" name="organisation_id" value="{{ filters.organisation_id or '' }}">
+              <input type="hidden" name="contact_id" value="{{ filters.contact_id or '' }}">
+              <input type="hidden" name="project_id" value="{{ filters.project_id or '' }}">
+              <button type="submit">Complete</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p>No tasks found.</p>
+  {% endif %}
 </section>
 {% endblock %}
