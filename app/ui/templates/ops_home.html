@@ -41,7 +41,8 @@
       <div class="panel-header">
         <div>
           <p class="eyebrow">SmartJobs</p>
-          <h2>Recent runs</h2>
+          <h2>Today’s runs</h2>
+          <span class="muted">{{ smartjobs_runs|length }} shown for {{ today_date }}</span>
         </div>
         <span class="muted">{{ smartjobs_runs|length }} shown</span>
       </div>

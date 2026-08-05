@@ -75,6 +75,7 @@ def ui_home(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
         review_queue_runs=review_queue_runs,
         linkedin_import_runs=linkedin_import_runs,
         attention_items=attention_items,
+        today_date=today.strftime("%Y-%m-%d"),
     )
 
 
