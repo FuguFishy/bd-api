@@ -26,13 +26,13 @@
     </article>
     <article class="summary-card">
       <p class="summary-label">Review Queue pending</p>
-      <p class="summary-value">{{ summary.pending_review_queue_runs or 0 }}</p>
-      <p class="summary-note">Review Queue runs not completed.</p>
+      <p class="summary-value">{{ summary.pending_linkedin_reviews or 0 }}</p>
+      <p class="summary-note">LinkedIn rows waiting for manual review.</p>
     </article>
     <article class="summary-card">
-      <p class="summary-label">LinkedIn review rows</p>
-      <p class="summary-value">{{ summary.pending_linkedin_reviews or 0 }}</p>
-      <p class="summary-note">Rows waiting for manual review.</p>
+      <p class="summary-label">Stale running</p>
+      <p class="summary-value">{{ summary.stale_running_runs or 0 }}</p>
+      <p class="summary-note">Runs that may be stuck.</p>
     </article>
   </section>
 
@@ -45,6 +45,7 @@
         </div>
         <span class="muted">{{ smartjobs_runs|length }} shown</span>
       </div>
+      {% if smartjobs_runs %}
       <div class="table-wrap">
         <table class="ops-table">
           <thead>
@@ -74,6 +75,9 @@
           </tbody>
         </table>
       </div>
+      {% else %}
+      <p class="empty-state">No SmartJobs runs found.</p>
+      {% endif %}
     </article>
 
     <article class="panel">
@@ -84,6 +88,7 @@
         </div>
         <span class="muted">{{ review_queue_runs|length }} shown</span>
       </div>
+      {% if review_queue_runs %}
       <div class="table-wrap">
         <table class="ops-table">
           <thead>
@@ -113,6 +118,9 @@
           </tbody>
         </table>
       </div>
+      {% else %}
+      <p class="empty-state">No Review Queue runs found.</p>
+      {% endif %}
     </article>
   </section>
 
@@ -125,6 +133,7 @@
         </div>
         <span class="muted">{{ linkedin_import_runs|length }} shown</span>
       </div>
+      {% if linkedin_import_runs %}
       <div class="table-wrap">
         <table class="ops-table">
           <thead>
@@ -154,6 +163,9 @@
           </tbody>
         </table>
       </div>
+      {% else %}
+      <p class="empty-state">No LinkedIn import runs found.</p>
+      {% endif %}
     </article>
 
     <article class="panel">

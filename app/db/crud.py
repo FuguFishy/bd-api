@@ -881,59 +881,34 @@ def get_ops_dashboard_summary(db: Session) -> dict[str, int]:
         .count()
     )
 
-    pending_review_queue_runs = (
-        db.query(models.WorkflowRun)
-        .filter(models.WorkflowRun.run_type == "review_queue", models.WorkflowRun.status != "completed")
-        .count()
-    )
-
-    smartjobs_errors_7d = (
-        db.query(models.WorkflowRun)
-        .filter(
-            models.WorkflowRun.run_type == "smartjobs",
-            models.WorkflowRun.status == "failed",
-            models.WorkflowRun.started_at >= seven_days_ago,
-        )
-        .count()
-    )
-
     return {
         "active_runs": active_runs,
         "failed_runs_7d": failed_runs_7d,
         "pending_linkedin_reviews": pending_linkedin_reviews,
         "stale_running_runs": stale_running_runs,
-        "pending_review_queue_runs": pending_review_queue_runs,
-        "smartjobs_errors_7d": smartjobs_errors_7d,
     }
 
 
-def list_recent_workflow_runs(db: Session, limit: int = 10):
-    runs = (
-        db.query(models.WorkflowRun)
-        .order_by(models.WorkflowRun.started_at.desc(), models.WorkflowRun.id.desc())
-        .limit(limit)
-        .all()
-    )
-    return [_workflow_run_to_dict(run) for run in runs]
-
-
-def list_workflow_runs_by_type(db: Session, run_type: str, limit: int = 8):
-    runs = (
-        db.query(models.WorkflowRun)
-        .filter(models.WorkflowRun.run_type == run_type)
-        .order_by(models.WorkflowRun.started_at.desc(), models.WorkflowRun.id.desc())
-        .limit(limit)
-        .all()
-    )
-    return [_workflow_run_to_dict(run) for run in runs]
-
-
 def list_smartjobs_runs(db: Session, limit: int = 8):
-    return list_workflow_runs_by_type(db, run_type="smartjobs", limit=limit)
+    runs = (
+        db.query(models.WorkflowRun)
+        .filter(models.WorkflowRun.run_type == "smartjobs")
+        .order_by(models.WorkflowRun.started_at.desc(), models.WorkflowRun.id.desc())
+        .limit(limit)
+        .all()
+    )
+    return [_workflow_run_to_dict(run) for run in runs]
 
 
 def list_review_queue_runs(db: Session, limit: int = 8):
-    return list_workflow_runs_by_type(db, run_type="review_queue", limit=limit)
+    runs = (
+        db.query(models.WorkflowRun)
+        .filter(models.WorkflowRun.run_type == "review_queue")
+        .order_by(models.WorkflowRun.started_at.desc(), models.WorkflowRun.id.desc())
+        .limit(limit)
+        .all()
+    )
+    return [_workflow_run_to_dict(run) for run in runs]
 
 
 def list_linkedin_import_runs_ui(db: Session, limit: int = 8):
@@ -944,10 +919,6 @@ def list_linkedin_import_runs_ui(db: Session, limit: int = 8):
         .all()
     )
     return [_linkedin_import_run_to_dict(run) for run in runs]
-
-
-def list_pending_linkedin_reviews(db: Session):
-    return list_linkedin_connection_staging_rows(db, review_status="pending")
 
 
 def list_ops_attention_items(db: Session):
