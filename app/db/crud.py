@@ -900,6 +900,23 @@ def list_smartjobs_runs(db: Session, limit: int = 8):
     return [_workflow_run_to_dict(run) for run in runs]
 
 
+def list_smartjobs_runs_for_day(db: Session, day: datetime.date):
+    start_of_day = datetime.combine(day, datetime.min.time()).replace(tzinfo=timezone.utc)
+    end_of_day = start_of_day + timedelta(days=1)
+    runs = (
+        db.query(models.WorkflowRun)
+        .filter(
+            models.WorkflowRun.run_type == "smartjobs",
+            models.WorkflowRun.started_at >= start_of_day,
+            models.WorkflowRun.started_at < end_of_day,
+        )
+        .order_by(models.WorkflowRun.started_at.desc(), models.WorkflowRun.id.desc())
+        .limit(10)
+        .all()
+    )
+    return [_workflow_run_to_dict(run) for run in runs]
+
+
 def list_review_queue_runs(db: Session, limit: int = 8):
     runs = (
         db.query(models.WorkflowRun)
