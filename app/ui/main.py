@@ -58,11 +58,11 @@ def render_page(
 @app.get("/", response_class=HTMLResponse)
 def ui_home(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     summary = crud.get_ops_dashboard_summary(db)
-    smartjobs_runs = crud.list_smartjobs_runs(db, limit=8)
+    today = datetime.now().date()
+    smartjobs_runs = crud.list_smartjobs_runs_for_day(db, day=today)
     review_queue_runs = crud.list_review_queue_runs(db, limit=8)
     linkedin_import_runs = crud.list_linkedin_import_runs_ui(db, limit=8)
     attention_items = crud.list_ops_attention_items(db)
-
     return render_page(
         request,
         "ops_home.html",
