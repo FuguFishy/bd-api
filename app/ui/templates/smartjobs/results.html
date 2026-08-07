@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="section-stack">
+  <div class="card">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">SmartJobs scraper</p>
+        <h2>Recent scrape runs</h2>
+      </div>
+      <a class="btn btn-primary" href="/ui/smartjobs/review-queue">Open SmartJobs Review Queue</a>
+    </div>
+    {% if scrape_runs %}
+    <div class="table-wrap">
+      <table class="ops-table">
+        <thead>
+          <tr>
+            <th>Run</th><th>Status</th><th>Started</th><th>Finished</th><th>Seen</th><th>Matched</th><th>Review handoffs</th><th>Error</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for run in scrape_runs %}
+          <tr>
+            <td>#{{ run.id }}</td>
+            <td><span class="status-pill status-{{ run.status }}">{{ run.status }}</span></td>
+            <td>{{ run.started_at }}</td>
+            <td>{{ run.finished_at or "-" }}</td>
+            <td>{{ run.jobs_seen }}</td>
+            <td>{{ run.jobs_matched }}</td>
+            <td>{{ run.review_items_created }}</td>
+            <td class="truncate" title="{{ run.error_message or '' }}">{{ run.error_message or "-" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="empty-state">No SmartJobs scrape runs are available yet.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Review handoffs</p>
+        <h2>Latest SmartJobs content</h2>
+      </div>
+      <a class="btn button-secondary" href="/ui/smartjobs/review-queue">Review items</a>
+    </div>
+    {% if review_items %}
+    <div class="table-wrap">
+      <table class="ops-table">
+        <thead>
+          <tr>
+            <th>Status</th><th>Job</th><th>Organisation</th><th>Contact</th><th>Phone / email</th><th>Score</th><th>Last updated</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in review_items %}
+          <tr>
+            <td><span class="status-pill status-{{ item.review_status }}">{{ item.review_status }}</span></td>
+            <td>{% if item.job_url %}<a href="{{ item.job_url }}" target="_blank" rel="noopener noreferrer">{{ item.job_title or "Open job" }}</a>{% else %}{{ item.job_title or "-" }}{% endif %}</td>
+            <td>{{ item.scraped_organisation or "-" }}</td>
+            <td>{{ item.scraped_contact_name or "-" }}</td>
+            <td>{{ item.scraped_contact_phone or item.scraped_contact_email or "-" }}</td>
+            <td>{{ item.best_score if item.best_score is not none else "-" }}</td>
+            <td>{{ item.updated_at }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="empty-state">No SmartJobs review items are available yet.</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

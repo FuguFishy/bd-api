@@ -23,6 +23,7 @@ ReviewResolveAction = Literal[
     "match_existing_organisation",
     "create_organisation",
     "create_organisation_and_contact",
+    "create_contact_for_existing_organisation",
 ]
 
 

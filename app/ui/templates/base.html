@@ -30,6 +30,18 @@
         </div>
 
         <div class="nav-section">
+          <p class="nav-section-label">SmartJobs</p>
+          <nav class="nav" aria-label="SmartJobs">
+            <a href="/ui/smartjobs" class="nav-link {% if active_page == 'smartjobs_results' %}is-active{% endif %}">
+              Results
+            </a>
+            <a href="/ui/smartjobs/review-queue" class="nav-link {% if active_page == 'smartjobs_review_queue' %}is-active{% endif %}">
+              Review queue
+            </a>
+          </nav>
+        </div>
+
+        <div class="nav-section">
           <p class="nav-section-label">LinkedIn</p>
           <nav class="nav" aria-label="LinkedIn">
             <a href="/ui/linkedin/import" class="nav-link {% if active_page == 'linkedin_import' %}is-active{% endif %}">

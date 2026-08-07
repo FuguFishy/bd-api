@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block extra_css %}
+<style>
+  .smartjobs-review-layout { display: grid; grid-template-columns: minmax(280px, .9fr) minmax(0, 1.6fr); gap: 1rem; }
+  .smartjobs-review-list { display: grid; gap: .65rem; max-height: 70vh; overflow-y: auto; }
+  .smartjobs-review-item { width: 100%; text-align: left; background: var(--surface, #fff); border: 1px solid var(--border, #d9dee7); border-radius: .6rem; padding: .8rem; cursor: pointer; }
+  .smartjobs-review-item.selected { border-color: #2563eb; box-shadow: 0 0 0 2px #bfdbfe; }
+  .smartjobs-review-item strong, .smartjobs-review-item span { display: block; }
+  .smartjobs-review-meta { color: #667085; font-size: .9rem; margin-top: .25rem; }
+  .smartjobs-detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem; margin: 1rem 0; }
+  .smartjobs-detail-grid label, .smartjobs-field label { display: block; font-size: .82rem; font-weight: 700; color: #475467; margin-bottom: .25rem; }
+  .smartjobs-detail-grid input, .smartjobs-field input, .smartjobs-field textarea, .smartjobs-field select { width: 100%; box-sizing: border-box; padding: .6rem; border: 1px solid #cbd5e1; border-radius: .4rem; }
+  .smartjobs-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1rem; }
+  .smartjobs-message { min-height: 1.3rem; margin-bottom: .8rem; }
+  .smartjobs-message.error { color: #b42318; }.smartjobs-message.success { color: #067647; }
+  @media (max-width: 900px) { .smartjobs-review-layout { grid-template-columns: 1fr; }.smartjobs-detail-grid { grid-template-columns: 1fr; } }
+</style>
+{% endblock %}
+{% block content %}
+<section class="section-stack">
+  <div class="card">
+    <div class="panel-header">
+      <div><p class="eyebrow">SmartJobs only</p><h2>Review Queue</h2></div>
+      <div class="button-row">
+        <button class="btn button-secondary status-filter is-active" data-status="new">New</button>
+        <button class="btn button-secondary status-filter" data-status="watchlist">Watchlist</button>
+        <button class="btn button-secondary status-filter" data-status="resolved">Resolved</button>
+        <button class="btn button-secondary status-filter" data-status="ignored">Ignored</button>
+      </div>
+    </div>
+    <p id="smartjobs-message" class="smartjobs-message"></p>
+    <div class="smartjobs-review-layout">
+      <aside><div id="smartjobs-items" class="smartjobs-review-list"><p class="empty-state">Loading SmartJobs items…</p></div></aside>
+      <main class="card"><div id="smartjobs-detail"><p class="empty-state">Select a SmartJobs item to review.</p></div></main>
+    </div>
+  </div>
+</section>
+{% endblock %}
+{% block extra_js %}
+<script>
+const orgs = {{ organisation_options | tojson }};
+const state = { status: 'new', items: [], selected: null };
+const itemsEl = document.getElementById('smartjobs-items');
+const detailEl = document.getElementById('smartjobs-detail');
+const messageEl = document.getElementById('smartjobs-message');
+const esc = value => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#039;');
+const date = value => value ? new Date(value).toLocaleString() : '—';
+function message(text = '', type = '') { messageEl.textContent = text; messageEl.className = `smartjobs-message ${type}`; }
+async function loadQueue(status = state.status) {
+  state.status = status; state.selected = null; message();
+  itemsEl.innerHTML = '<p class="empty-state">Loading SmartJobs items…</p>';
+  detailEl.innerHTML = '<p class="empty-state">Select a SmartJobs item to review.</p>';
+  const response = await fetch(`/review-queue?source_type=smartjobs&status=${encodeURIComponent(status)}&limit=100`);
+  if (!response.ok) throw new Error(`Could not load SmartJobs items (${response.status})`);
+  state.items = await response.json(); renderItems();
+  if (state.items.length) selectItem(state.items[0].id);
+}
+function renderItems() {
+  if (!state.items.length) { itemsEl.innerHTML = `<p class="empty-state">No ${esc(state.status)} SmartJobs items.</p>`; return; }
+  itemsEl.innerHTML = state.items.map(item => `<button class="smartjobs-review-item ${state.selected === item.id ? 'selected' : ''}" data-id="${item.id}"><strong>${esc(item.job_title || 'Untitled job')}</strong><span class="smartjobs-review-meta">${esc(item.scraped_organisation || 'Unknown organisation')}</span><span class="smartjobs-review-meta">${esc(item.scraped_contact_name || 'No contact')} · score ${esc(item.best_score ?? '—')}</span></button>`).join('');
+  itemsEl.querySelectorAll('[data-id]').forEach(button => button.addEventListener('click', () => selectItem(Number(button.dataset.id))));
+}
+function selectItem(id) { state.selected = id; renderItems(); const item = state.items.find(row => row.id === id); if (item) renderDetail(item); }
+function orgOptions(selectedId) { return ['<option value="">Select an organisation…</option>', ...orgs.map(org => `<option value="${org.id}" ${Number(selectedId) === Number(org.id) ? 'selected' : ''}>${esc(org.name)}</option>`)].join(''); }
+function renderDetail(item) {
+  const editable = ['new', 'watchlist'].includes(item.review_status);
+  detailEl.innerHTML = `<h2>${esc(item.job_title || 'Untitled job')}</h2><p>${esc(item.scraped_organisation || 'Unknown organisation')}</p>
+    <div class="smartjobs-detail-grid"><div><label>Status</label><span>${esc(item.review_status)}</span></div><div><label>Match score</label><span>${esc(item.best_score ?? '—')}</span></div><div><label>Contact</label><span>${esc(item.scraped_contact_name || '—')}</span></div><div><label>Phone</label><span>${esc(item.scraped_contact_phone || '—')}</span></div><div><label>Email</label><span>${esc(item.scraped_contact_email || '—')}</span></div><div><label>Created</label><span>${esc(date(item.created_at))}</span></div></div>
+    <p>${item.job_url ? `<a class="btn button-secondary" href="${esc(item.job_url)}" target="_blank" rel="noopener noreferrer">Open SmartJobs ad</a>` : 'No job URL provided.'}</p>
+    <div class="smartjobs-field"><label for="reviewer">Reviewer name</label><input id="reviewer" ${editable ? '' : 'disabled'} placeholder="Required for an action"></div>
+    <div class="smartjobs-field"><label for="review-notes">Review notes</label><textarea id="review-notes" rows="4" ${editable ? '' : 'disabled'}>${esc(item.review_notes || '')}</textarea></div>
+    <div class="smartjobs-detail-grid"><div class="smartjobs-field"><label for="existing-org">Existing organisation</label><select id="existing-org" ${editable ? '' : 'disabled'}>${orgOptions(item.linked_organisation_id)}</select></div></div>
+    ${editable ? `<div class="smartjobs-actions"><button class="btn button-secondary" data-action="ignore">Ignore</button><button class="btn button-secondary" data-action="watchlist">Watchlist</button><button class="btn btn-primary" data-action="create_contact_for_existing_organisation">Confirm / create contact</button></div>` : `<p class="muted">This item is already ${esc(item.review_status)}.</p>`}`;
+  detailEl.querySelectorAll('[data-action]').forEach(button => button.addEventListener('click', () => submitAction(item.id, button.dataset.action)));
+}
+async function submitAction(id, action) {
+  const resolved_by = document.getElementById('reviewer').value.trim();
+  if (!resolved_by) { message('Reviewer name is required.', 'error'); return; }
+  const payload = { action, resolved_by, review_notes: document.getElementById('review-notes').value.trim() || null };
+  if (action === 'create_contact_for_existing_organisation') {
+    const organisation_id = Number(document.getElementById('existing-org').value);
+    if (!organisation_id) { message('Select the existing organisation first.', 'error'); return; }
+    const current = state.items.find(item => item.id === id);
+    if (!current.scraped_contact_name) { message('A scraped contact name is required.', 'error'); return; }
+    payload.organisation_id = organisation_id;
+    payload.contact_name = current.scraped_contact_name;
+    payload.contact_email = current.scraped_contact_email || null;
+    if (!confirm('This will confirm an existing contact or create one under the selected organisation. Continue?')) return;
+  }
+  const response = await fetch(`/review-queue/${id}/resolve?source_type=smartjobs`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+  if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(typeof body.detail === 'string' ? body.detail : `Action failed (${response.status})`); }
+  message('SmartJobs review item updated.', 'success'); await loadQueue(state.status);
+}
+document.querySelectorAll('.status-filter').forEach(button => button.addEventListener('click', async () => { document.querySelectorAll('.status-filter').forEach(item => item.classList.remove('is-active')); button.classList.add('is-active'); try { await loadQueue(button.dataset.status); } catch (error) { message(error.message, 'error'); } }));
+loadQueue().catch(error => message(error.message, 'error'));
+</script>
+{% endblock %}
