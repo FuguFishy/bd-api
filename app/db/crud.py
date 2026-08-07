@@ -871,6 +871,7 @@ def get_ops_dashboard_summary(db: Session) -> dict[str, int]:
                     from public.scrape_runs
                     where source_name = 'smartjobs'
                       and status = 'running'
+                      and started_at >= now() - interval '2 hours'
                 ) as active_runs,
                 (
                     select count(*)
@@ -998,7 +999,11 @@ def list_ops_attention_items(db: Session):
             select source_name, status
             from public.scrape_runs
             where source_name = 'smartjobs'
-              and status in ('failed', 'running')
+              and (
+                (status = 'failed' and started_at >= now() - interval '7 days')
+                or
+                (status = 'running' and started_at < now() - interval '2 hours')
+              )
             order by started_at desc
             limit 10
             """
