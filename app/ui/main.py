@@ -67,8 +67,8 @@ def ui_home(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
         request,
         "ops_home.html",
         page_title="BD Ops Dashboard",
-        heading="BD Ops Dashboard",
-        description="SmartJobs runs, review queue, and workflow issues.",
+        heading="",
+        description="",
         active_page="ops",
         summary=summary,
         smartjobs_runs=smartjobs_runs,
@@ -92,12 +92,8 @@ def crm_home(request: Request) -> HTMLResponse:
 
 
 @app.get("/organisations", response_class=HTMLResponse)
-def organisations_page(
-    request: Request,
-    db: Session = Depends(get_db),
-) -> HTMLResponse:
+def organisations_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     organisations = crud.list_organisations_ui(db)
-
     return render_page(
         request,
         "organisations.html",
@@ -120,7 +116,6 @@ def organisation_detail_page(
         return RedirectResponse(url="/ui/organisations", status_code=303)
 
     organisation = detail["organisation"]
-
     return render_page(
         request,
         "organisation_detail.html",
@@ -142,9 +137,6 @@ def contacts_page(
     organisation_id: int | None = None,
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
-    contacts = crud.list_contacts(db)
-    organisations = crud.list_organisations(db)
-
     return render_page(
         request,
         "contacts.html",
@@ -152,8 +144,8 @@ def contacts_page(
         heading="Contacts",
         description="Create and browse contacts linked to organisations.",
         active_page="contacts",
-        contacts=contacts,
-        organisations=organisations,
+        contacts=crud.list_contacts(db),
+        organisations=crud.list_organisations(db),
         selected_organisation_id=organisation_id,
     )
 
@@ -164,9 +156,6 @@ def projects_page(
     organisation_id: int | None = None,
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
-    projects = crud.list_projects(db)
-    organisations = crud.list_organisations(db)
-
     return render_page(
         request,
         "projects.html",
@@ -174,8 +163,8 @@ def projects_page(
         heading="Projects",
         description="Create and browse projects linked to organisations.",
         active_page="projects",
-        projects=projects,
-        organisations=organisations,
+        projects=crud.list_projects(db),
+        organisations=crud.list_organisations(db),
         selected_organisation_id=organisation_id,
     )
 
@@ -188,11 +177,6 @@ def activities_page(
     project_id: int | None = None,
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
-    activities = crud.list_activities(db)
-    organisations = crud.list_organisations(db)
-    contacts = crud.list_contacts(db)
-    projects = crud.list_projects(db)
-
     return render_page(
         request,
         "activities.html",
@@ -200,10 +184,10 @@ def activities_page(
         heading="Activities",
         description="Log interactions and browse recent activity.",
         active_page="activities",
-        activities=activities,
-        organisations=organisations,
-        contacts=contacts,
-        projects=projects,
+        activities=crud.list_activities(db),
+        organisations=crud.list_organisations(db),
+        contacts=crud.list_contacts(db),
+        projects=crud.list_projects(db),
         selected_organisation_id=organisation_id,
         selected_contact_id=contact_id,
         selected_project_id=project_id,
@@ -227,10 +211,6 @@ def tasks_page(
         contact_id=contact_id,
         project_id=project_id,
     )
-    organisations = crud.list_organisations(db)
-    contacts = crud.list_contacts(db)
-    projects = crud.list_projects(db)
-
     return render_page(
         request,
         "tasks.html",
@@ -239,9 +219,9 @@ def tasks_page(
         description="Track open and completed tasks.",
         active_page="tasks",
         tasks=tasks,
-        organisations=organisations,
-        contacts=contacts,
-        projects=projects,
+        organisations=crud.list_organisations(db),
+        contacts=crud.list_contacts(db),
+        projects=crud.list_projects(db),
         filters={
             "status": status or "",
             "organisation_id": organisation_id,
@@ -261,8 +241,6 @@ def task_complete(
     db: Session = Depends(get_db),
 ):
     crud.complete_task(db, task_id)
-
-    redirect_url = "/ui/tasks"
     params = []
     if status:
         params.append(f"status={status}")
@@ -273,9 +251,9 @@ def task_complete(
     if project_id:
         params.append(f"project_id={project_id}")
 
+    redirect_url = "/ui/tasks"
     if params:
         redirect_url = f"{redirect_url}?{'&'.join(params)}"
-
     return RedirectResponse(url=redirect_url, status_code=303)
 
 
@@ -298,14 +276,11 @@ async def linkedin_import_submit(
     db: Session = Depends(get_db),
 ):
     file_bytes = await file.read()
-
     run = create_import_run(db, filename=file.filename, uploaded_by=uploaded_by)
     rows = parse_connections_csv(file_bytes)
     staged_rows = stage_connections(db, run.id, rows)
-
     for row in staged_rows:
         process_staged_linkedin_row(db, row)
-
     return RedirectResponse(url=f"/ui/linkedin/runs/{run.id}", status_code=303)
 
 
@@ -319,8 +294,6 @@ def linkedin_run_detail(
     if not run:
         raise HTTPException(status_code=404, detail="LinkedIn import run not found")
 
-    staged_rows = crud.list_linkedin_connection_staging_rows(db, import_run_id=run_id)
-
     return render_page(
         request,
         "linkedin/run_detail.html",
@@ -329,18 +302,12 @@ def linkedin_run_detail(
         description=f"Imported file: {run.filename}",
         active_page="linkedin_import",
         run=run,
-        staged_rows=staged_rows,
+        staged_rows=crud.list_linkedin_connection_staging_rows(db, import_run_id=run_id),
     )
 
 
 @app.get("/linkedin/review", response_class=HTMLResponse)
-def linkedin_review_page(
-    request: Request,
-    db: Session = Depends(get_db),
-) -> HTMLResponse:
-    pending_rows = crud.list_pending_linkedin_reviews(db)
-    organisations = crud.list_organisations(db)
-
+def linkedin_review_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     return render_page(
         request,
         "linkedin/review.html",
@@ -348,8 +315,8 @@ def linkedin_review_page(
         heading="LinkedIn Review",
         description="Review flagged LinkedIn staging rows and approve or skip them.",
         active_page="linkedin_review",
-        pending_rows=pending_rows,
-        organisations=organisations,
+        pending_rows=crud.list_pending_linkedin_reviews(db),
+        organisations=crud.list_organisations(db),
     )
 
 
@@ -377,7 +344,6 @@ async def linkedin_review_approve(
             "review_notes": row.review_notes,
         },
     )
-
     approve_staged_row_create_contact(
         db=db,
         staged_row_id=staging_row_id,
