@@ -69,19 +69,24 @@ function renderDetail(item) {
     <p>${item.job_url ? `<a class="btn button-secondary" href="${esc(item.job_url)}" target="_blank" rel="noopener noreferrer">Open SmartJobs ad</a>` : 'No job URL provided.'}</p>
     <div class="smartjobs-field"><label for="reviewer">Reviewer name</label><input id="reviewer" ${editable ? '' : 'disabled'} placeholder="Required for an action"></div>
     <div class="smartjobs-field"><label for="review-notes">Review notes</label><textarea id="review-notes" rows="4" ${editable ? '' : 'disabled'}>${esc(item.review_notes || '')}</textarea></div>
-    <div class="smartjobs-detail-grid"><div class="smartjobs-field"><label for="existing-org">Match an existing organisation</label><select id="existing-org" ${editable ? '' : 'disabled'}>${orgOptions(item.linked_organisation_id)}</select></div><div class="smartjobs-field"><label for="new-org">New organisation name</label><input id="new-org" value="${esc(item.scraped_organisation || '')}" ${editable ? '' : 'disabled'}></div><div class="smartjobs-field"><label for="new-contact">New contact name</label><input id="new-contact" value="${esc(item.scraped_contact_name || '')}" ${editable ? '' : 'disabled'}></div></div>
-    ${editable ? `<div class="smartjobs-actions"><button class="btn button-secondary" data-action="ignore">Ignore</button><button class="btn button-secondary" data-action="watchlist">Watchlist</button><button class="btn button-secondary" data-action="match_existing_organisation">Match existing organisation</button><button class="btn btn-primary" data-action="create_organisation">Create organisation</button><button class="btn btn-primary" data-action="create_organisation_and_contact">Create organisation + contact</button></div>` : `<p class="muted">This item is already ${esc(item.review_status)}.</p>`}`;
+    <div class="smartjobs-detail-grid"><div class="smartjobs-field"><label for="existing-org">Existing organisation</label><select id="existing-org" ${editable ? '' : 'disabled'}>${orgOptions(item.linked_organisation_id)}</select></div></div>
+    ${editable ? `<div class="smartjobs-actions"><button class="btn button-secondary" data-action="ignore">Ignore</button><button class="btn button-secondary" data-action="watchlist">Watchlist</button><button class="btn btn-primary" data-action="create_contact_for_existing_organisation">Confirm / create contact</button></div>` : `<p class="muted">This item is already ${esc(item.review_status)}.</p>`}`;
   detailEl.querySelectorAll('[data-action]').forEach(button => button.addEventListener('click', () => submitAction(item.id, button.dataset.action)));
 }
 async function submitAction(id, action) {
   const resolved_by = document.getElementById('reviewer').value.trim();
   if (!resolved_by) { message('Reviewer name is required.', 'error'); return; }
   const payload = { action, resolved_by, review_notes: document.getElementById('review-notes').value.trim() || null };
-  if (action === 'match_existing_organisation') { const organisation_id = Number(document.getElementById('existing-org').value); if (!organisation_id) { message('Select an existing organisation first.', 'error'); return; } payload.organisation_id = organisation_id; }
-  if (action === 'create_organisation' || action === 'create_organisation_and_contact') { payload.organisation_name = document.getElementById('new-org').value.trim(); if (!payload.organisation_name) { message('Organisation name is required.', 'error'); return; } payload.sector = 'Government'; payload.tier = 'Target'; payload.account_status = 'Prospect'; }
-  if (action === 'create_organisation_and_contact') { payload.contact_name = document.getElementById('new-contact').value.trim(); if (!payload.contact_name) { message('Contact name is required.', 'error'); return; } const current = state.items.find(item => item.id === id); payload.contact_email = current.scraped_contact_email || null; payload.contact_phone = current.scraped_contact_phone || null; }
-  const createsData = action.startsWith('create_');
-  if (createsData && !confirm('This will create CRM data. Continue?')) return;
+  if (action === 'create_contact_for_existing_organisation') {
+    const organisation_id = Number(document.getElementById('existing-org').value);
+    if (!organisation_id) { message('Select the existing organisation first.', 'error'); return; }
+    const current = state.items.find(item => item.id === id);
+    if (!current.scraped_contact_name) { message('A scraped contact name is required.', 'error'); return; }
+    payload.organisation_id = organisation_id;
+    payload.contact_name = current.scraped_contact_name;
+    payload.contact_email = current.scraped_contact_email || null;
+    if (!confirm('This will confirm an existing contact or create one under the selected organisation. Continue?')) return;
+  }
   const response = await fetch(`/review-queue/${id}/resolve?source_type=smartjobs`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
   if (!response.ok) { const body = await response.json().catch(() => ({})); throw new Error(typeof body.detail === 'string' ? body.detail : `Action failed (${response.status})`); }
   message('SmartJobs review item updated.', 'success'); await loadQueue(state.status);

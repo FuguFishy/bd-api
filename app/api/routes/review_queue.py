@@ -1,4 +1,5 @@
 from datetime import datetime, UTC
+import re
 from typing import Optional
 import json
 
@@ -16,6 +17,17 @@ from app.schemas.review_queue import (
 )
 
 router = APIRouter(prefix="/review-queue", tags=["review-queue"])
+
+
+def _normalise_contact_name(value: str) -> str:
+    return re.sub(r"[^\w]+", "", value.casefold()).replace("_", "")
+
+
+def _split_contact_name(value: str) -> tuple[str, str]:
+    parts = value.split()
+    if len(parts) == 1:
+        return parts[0], ""
+    return parts[0], " ".join(parts[1:])
 
 
 REVIEW_QUEUE_SELECT = """
@@ -203,6 +215,11 @@ def resolve_review_queue_item(
             """
             select
                 id,
+                source_type,
+                scraped_contact_name,
+                scraped_contact_email,
+                scraped_contact_phone,
+                job_title,
                 linked_organisation_id,
                 linked_contact_id
             from public.review_queue
@@ -216,6 +233,16 @@ def resolve_review_queue_item(
 
     if not review:
         raise HTTPException(status_code=404, detail="Review item not found")
+
+    if review["source_type"] == "smartjobs" and payload.action in {
+        "match_existing_organisation",
+        "create_organisation",
+        "create_organisation_and_contact",
+    }:
+        raise HTTPException(
+            status_code=400,
+            detail="SmartJobs can create contacts only under an existing organisation",
+        )
 
     linked_organisation_id = review["linked_organisation_id"]
     linked_contact_id = review["linked_contact_id"]
@@ -304,6 +331,160 @@ def resolve_review_queue_item(
             {
                 "review_action": payload.action,
                 "linked_organisation_id": linked_organisation_id,
+                "review_notes": payload.review_notes,
+                "resolved_by": payload.resolved_by,
+                "resolved_at": datetime.now(UTC),
+                "review_id": review_id,
+            },
+        )
+
+    elif payload.action == "create_contact_for_existing_organisation":
+        if review["source_type"] != "smartjobs":
+            raise HTTPException(status_code=400, detail="This action is restricted to SmartJobs")
+        if not payload.organisation_id:
+            raise HTTPException(status_code=400, detail="organisation_id is required")
+
+        contact_name = (payload.contact_name or review["scraped_contact_name"] or "").strip()
+        contact_email = (payload.contact_email or review["scraped_contact_email"] or "").strip() or None
+        if not contact_name:
+            raise HTTPException(status_code=400, detail="A scraped contact name is required")
+
+        org = db.execute(
+            text(
+                """
+                select id, name
+                from public.organisations
+                where id = :organisation_id
+                limit 1
+                """
+            ),
+            {"organisation_id": payload.organisation_id},
+        ).mappings().first()
+        if not org:
+            raise HTTPException(status_code=404, detail="Organisation not found")
+
+        linked_organisation_id = org["id"]
+        normalised_name = _normalise_contact_name(contact_name)
+        normalised_email = contact_email.casefold() if contact_email else None
+        lock_keys = [f"smartjobs:name:{linked_organisation_id}:{normalised_name}"]
+        if normalised_email:
+            lock_keys.append(f"smartjobs:email:{normalised_email}")
+        for lock_key in sorted(lock_keys):
+            db.execute(text("select pg_advisory_xact_lock(hashtext(:lock_key))"), {"lock_key": lock_key})
+
+        existing_by_email = None
+        if normalised_email:
+            existing_by_email = db.execute(
+                text(
+                    """
+                    select id, organisation_id, email
+                    from public.contacts
+                    where lower(email) = :email
+                    limit 1
+                    """
+                ),
+                {"email": normalised_email},
+            ).mappings().first()
+
+        existing_by_name = db.execute(
+            text(
+                """
+                select id, organisation_id, email
+                from public.contacts
+                where organisation_id = :organisation_id
+                  and regexp_replace(lower(coalesce(full_name, concat_ws(' ', first_name, last_name))), '[^[:alnum:]]+', '', 'g') = :normalised_name
+                limit 1
+                """
+            ),
+            {"organisation_id": linked_organisation_id, "normalised_name": normalised_name},
+        ).mappings().first()
+
+        if existing_by_email and existing_by_email["organisation_id"] != linked_organisation_id:
+            raise HTTPException(
+                status_code=409,
+                detail="The scraped email belongs to a contact at a different organisation",
+            )
+        if (
+            existing_by_name
+            and normalised_email
+            and existing_by_name["email"]
+            and existing_by_name["email"].casefold() != normalised_email
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="A contact with this name exists at the organisation but has a different email",
+            )
+
+        existing_contact = existing_by_email or existing_by_name
+        if existing_contact:
+            linked_contact_id = existing_contact["id"]
+            review_action = "existing_contact_confirmed"
+        else:
+            first_name, last_name = _split_contact_name(contact_name)
+            source_note_parts = [f"SmartJobs review queue item #{review_id}"]
+            if review["job_title"]:
+                source_note_parts.append(f"Job: {review['job_title']}")
+            if review["scraped_contact_phone"]:
+                source_note_parts.append(f"Scraped phone retained in review record: {review['scraped_contact_phone']}")
+            contact = db.execute(
+                text(
+                    """
+                    insert into public.contacts (
+                        organisation_id,
+                        organisation_name,
+                        first_name,
+                        last_name,
+                        full_name,
+                        email,
+                        source_type,
+                        notes
+                    )
+                    values (
+                        :organisation_id,
+                        :organisation_name,
+                        :first_name,
+                        :last_name,
+                        :full_name,
+                        :email,
+                        'smartjobs',
+                        :notes
+                    )
+                    returning id
+                    """
+                ),
+                {
+                    "organisation_id": linked_organisation_id,
+                    "organisation_name": org["name"],
+                    "first_name": first_name,
+                    "last_name": last_name,
+                    "full_name": contact_name,
+                    "email": contact_email,
+                    "notes": " | ".join(source_note_parts),
+                },
+            ).mappings().first()
+            linked_contact_id = contact["id"]
+            review_action = "create_contact_for_existing_organisation"
+
+        db.execute(
+            text(
+                """
+                update public.review_queue
+                set
+                    review_status = 'resolved',
+                    review_action = :review_action,
+                    linked_organisation_id = :linked_organisation_id,
+                    linked_contact_id = :linked_contact_id,
+                    review_notes = :review_notes,
+                    resolved_by = :resolved_by,
+                    resolved_at = :resolved_at,
+                    updated_at = now()
+                where id = :review_id
+                """
+            ),
+            {
+                "review_action": review_action,
+                "linked_organisation_id": linked_organisation_id,
+                "linked_contact_id": linked_contact_id,
                 "review_notes": payload.review_notes,
                 "resolved_by": payload.resolved_by,
                 "resolved_at": datetime.now(UTC),
