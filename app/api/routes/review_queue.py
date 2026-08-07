@@ -56,18 +56,20 @@ from public.review_queue
 @router.get("", response_model=list[ReviewQueueOut])
 def list_review_queue(
     status: Optional[str] = Query(default=None),
+    source_type: Optional[str] = Query(default=None),
     limit: int = Query(default=100, ge=1, le=500),
     db: Session = Depends(get_db),
 ):
     sql = f"""
     {REVIEW_QUEUE_SELECT}
     where (:status is null or review_status = :status)
+      and (:source_type is null or source_type = :source_type)
     order by created_at desc
     limit :limit
     """
     rows = db.execute(
         text(sql),
-        {"status": status, "limit": limit},
+        {"status": status, "source_type": source_type, "limit": limit},
     ).mappings().all()
     return [ReviewQueueOut(**dict(row)) for row in rows]
 
@@ -75,13 +77,18 @@ def list_review_queue(
 @router.get("/{review_id}", response_model=ReviewQueueOut)
 def get_review_queue_item(
     review_id: int,
+    source_type: Optional[str] = Query(default=None),
     db: Session = Depends(get_db),
 ):
     sql = f"""
     {REVIEW_QUEUE_SELECT}
     where id = :review_id
+      and (:source_type is null or source_type = :source_type)
     """
-    row = db.execute(text(sql), {"review_id": review_id}).mappings().first()
+    row = db.execute(
+        text(sql),
+        {"review_id": review_id, "source_type": source_type},
+    ).mappings().first()
     if not row:
         raise HTTPException(status_code=404, detail="Review item not found")
     return ReviewQueueOut(**dict(row))
@@ -188,6 +195,7 @@ def create_review_queue_item(
 def resolve_review_queue_item(
     review_id: int,
     payload: ReviewQueueResolveRequest,
+    source_type: Optional[str] = Query(default=None),
     db: Session = Depends(get_db),
 ):
     review = db.execute(
@@ -199,10 +207,11 @@ def resolve_review_queue_item(
                 linked_contact_id
             from public.review_queue
             where id = :review_id
+              and (:source_type is null or source_type = :source_type)
             limit 1
             """
         ),
-        {"review_id": review_id},
+        {"review_id": review_id, "source_type": source_type},
     ).mappings().first()
 
     if not review:

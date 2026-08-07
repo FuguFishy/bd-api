@@ -7,6 +7,7 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Upload
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.db import crud
@@ -373,3 +374,60 @@ async def linkedin_review_skip(
         note=note,
     )
     return RedirectResponse(url="/ui/linkedin/review", status_code=303)
+
+
+@app.get("/smartjobs", response_class=HTMLResponse)
+def smartjobs_results_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
+    scrape_runs = db.execute(
+        text(
+            """
+            select id, started_at, finished_at, status, jobs_seen, jobs_matched,
+                   review_items_created, duplicates_skipped, error_count, error_message
+            from public.scrape_runs
+            where source_name = 'smartjobs'
+            order by started_at desc
+            limit 20
+            """
+        )
+    ).mappings().all()
+    review_items = db.execute(
+        text(
+            """
+            select id, review_status, job_title, scraped_organisation,
+                   scraped_contact_name, scraped_contact_email, scraped_contact_phone,
+                   best_score, job_url, created_at, updated_at
+            from public.review_queue
+            where source_type = 'smartjobs'
+            order by updated_at desc, id desc
+            limit 20
+            """
+        )
+    ).mappings().all()
+    return render_page(
+        request,
+        "smartjobs/results.html",
+        page_title="SmartJobs Results",
+        heading="SmartJobs Results",
+        description="Recent scraper runs and the job content handed to the SmartJobs Review Queue.",
+        active_page="smartjobs_results",
+        scrape_runs=scrape_runs,
+        review_items=review_items,
+    )
+
+
+@app.get("/smartjobs/review-queue", response_class=HTMLResponse)
+def smartjobs_review_queue_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
+    organisations = crud.list_organisations(db)
+    organisation_options = [
+        {"id": organisation.id, "name": organisation.name}
+        for organisation in organisations
+    ]
+    return render_page(
+        request,
+        "smartjobs/review_queue.html",
+        page_title="SmartJobs Review Queue",
+        heading="SmartJobs Review Queue",
+        description="Review SmartJobs contacts and organisations without mixing them with LinkedIn workflows.",
+        active_page="smartjobs_review_queue",
+        organisation_options=organisation_options,
+    )
