@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
-from sqlalchemy import or_
+from sqlalchemy import or_, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -14,6 +15,8 @@ from app.schemas.contacts import ContactCreate
 from app.schemas.organisations import OrganisationCreate
 from app.schemas.projects import ProjectCreate
 from app.schemas.tasks import TaskCreate
+
+BRISBANE_TZ = ZoneInfo("Australia/Brisbane")
 
 
 def _payload_dict(payload: Any) -> dict[str, Any]:
@@ -859,62 +862,112 @@ def _linkedin_import_run_to_dict(run: Any) -> dict[str, Any]:
 
 
 def get_ops_dashboard_summary(db: Session) -> dict[str, int]:
-    active_runs = db.query(models.WorkflowRun).filter(models.WorkflowRun.status == "running").count()
-
-    seven_days_ago = datetime.now(timezone.utc) - timedelta(days=7)
-    failed_runs_7d = (
-        db.query(models.WorkflowRun)
-        .filter(models.WorkflowRun.status == "failed", models.WorkflowRun.started_at >= seven_days_ago)
-        .count()
-    )
-
-    pending_linkedin_reviews = (
-        db.query(models.LinkedinConnectionStaging)
-        .filter(models.LinkedinConnectionStaging.review_status == "pending")
-        .count()
-    )
-
-    stale_cutoff = datetime.now(timezone.utc) - timedelta(hours=2)
-    stale_running_runs = (
-        db.query(models.WorkflowRun)
-        .filter(models.WorkflowRun.status == "running", models.WorkflowRun.started_at < stale_cutoff)
-        .count()
-    )
+    row = db.execute(
+        text(
+            """
+            select
+                (
+                    select count(*)
+                    from public.scrape_runs
+                    where source_name = 'smartjobs'
+                      and status = 'running'
+                ) as active_runs,
+                (
+                    select count(*)
+                    from public.scrape_runs
+                    where source_name = 'smartjobs'
+                      and status = 'failed'
+                      and started_at >= now() - interval '7 days'
+                ) as failed_runs_7d,
+                (
+                    select count(*)
+                    from public.review_queue
+                    where review_status in ('new', 'pending', 'open', 'watchlist')
+                ) as pending_review_items,
+                (
+                    select count(*)
+                    from public.scrape_runs
+                    where source_name = 'smartjobs'
+                      and status = 'running'
+                      and started_at < now() - interval '2 hours'
+                ) as stale_running_runs
+            """
+        )
+    ).mappings().one()
 
     return {
-        "active_runs": active_runs,
-        "failed_runs_7d": failed_runs_7d,
-        "pending_linkedin_reviews": pending_linkedin_reviews,
-        "stale_running_runs": stale_running_runs,
+        "active_runs": row["active_runs"],
+        "failed_runs_7d": row["failed_runs_7d"],
+        "pending_linkedin_reviews": row["pending_review_items"],
+        "stale_running_runs": row["stale_running_runs"],
+    }
+
+
+def _scrape_run_row_to_dict(row: Any) -> dict[str, Any]:
+    started_at = row["started_at"]
+    finished_at = row["finished_at"]
+    duration_seconds = None
+    if started_at and finished_at:
+        duration_seconds = int((finished_at - started_at).total_seconds())
+
+    return {
+        "id": row["id"],
+        "source_name": row["source_name"],
+        "started_at": started_at,
+        "finished_at": finished_at,
+        "status": row["status"],
+        "jobs_seen": row["jobs_seen"],
+        "jobs_matched": row["jobs_matched"],
+        "review_items_created": row["review_items_created"],
+        "duplicates_skipped": row["duplicates_skipped"],
+        "duration_seconds": duration_seconds,
+        "error_message": row["error_message"],
     }
 
 
 def list_smartjobs_runs(db: Session, limit: int = 8):
-    runs = (
-        db.query(models.WorkflowRun)
-        .filter(models.WorkflowRun.run_type == "smartjobs")
-        .order_by(models.WorkflowRun.started_at.desc(), models.WorkflowRun.id.desc())
-        .limit(limit)
-        .all()
-    )
-    return [_workflow_run_to_dict(run) for run in runs]
+    rows = db.execute(
+        text(
+            """
+            select
+                id, source_name, started_at, finished_at, status,
+                jobs_seen, jobs_matched, review_items_created,
+                duplicates_skipped, error_message
+            from public.scrape_runs
+            where source_name = 'smartjobs'
+            order by started_at desc, id desc
+            limit :limit
+            """
+        ),
+        {"limit": limit},
+    ).mappings().all()
+    return [_scrape_run_row_to_dict(row) for row in rows]
 
 
 def list_smartjobs_runs_for_day(db: Session, day: datetime.date):
-    start_of_day = datetime.combine(day, datetime.min.time()).replace(tzinfo=timezone.utc)
+    start_of_day = datetime.combine(day, datetime.min.time(), tzinfo=BRISBANE_TZ)
     end_of_day = start_of_day + timedelta(days=1)
-    runs = (
-        db.query(models.WorkflowRun)
-        .filter(
-            models.WorkflowRun.run_type == "smartjobs",
-            models.WorkflowRun.started_at >= start_of_day,
-            models.WorkflowRun.started_at < end_of_day,
-        )
-        .order_by(models.WorkflowRun.started_at.desc(), models.WorkflowRun.id.desc())
-        .limit(10)
-        .all()
-    )
-    return [_workflow_run_to_dict(run) for run in runs]
+    rows = db.execute(
+        text(
+            """
+            select
+                id, source_name, started_at, finished_at, status,
+                jobs_seen, jobs_matched, review_items_created,
+                duplicates_skipped, error_message
+            from public.scrape_runs
+            where source_name = 'smartjobs'
+              and started_at >= :start_of_day
+              and started_at < :end_of_day
+            order by started_at desc, id desc
+            limit 10
+            """
+        ),
+        {
+            "start_of_day": start_of_day.astimezone(timezone.utc),
+            "end_of_day": end_of_day.astimezone(timezone.utc),
+        },
+    ).mappings().all()
+    return [_scrape_run_row_to_dict(row) for row in rows]
 
 
 def list_review_queue_runs(db: Session, limit: int = 8):
@@ -939,26 +992,42 @@ def list_linkedin_import_runs_ui(db: Session, limit: int = 8):
 
 
 def list_ops_attention_items(db: Session):
-    rows = (
-        db.query(models.WorkflowRun)
-        .filter(models.WorkflowRun.status != "completed")
-        .order_by(models.WorkflowRun.started_at.desc())
-        .limit(10)
-        .all()
-    )
+    scrape_rows = db.execute(
+        text(
+            """
+            select source_name, status
+            from public.scrape_runs
+            where source_name = 'smartjobs'
+              and status in ('failed', 'running')
+            order by started_at desc
+            limit 10
+            """
+        )
+    ).mappings().all()
 
     attention = []
-    for run in rows:
-        severity = "medium"
-        if run.status == "failed":
-            severity = "high"
-        elif run.status == "running":
-            severity = "medium"
-
+    for row in scrape_rows:
         attention.append(
             {
-                "label": f"{run.workflow_name} · {run.status}",
-                "severity": severity,
+                "label": f"{row['source_name']} scrape · {row['status']}",
+                "severity": "high" if row["status"] == "failed" else "medium",
+            }
+        )
+
+    pending_review_items = db.execute(
+        text(
+            """
+            select count(*)
+            from public.review_queue
+            where review_status in ('new', 'pending', 'open', 'watchlist')
+            """
+        )
+    ).scalar_one()
+    if pending_review_items:
+        attention.append(
+            {
+                "label": f"{pending_review_items} review items awaiting action",
+                "severity": "medium",
             }
         )
 

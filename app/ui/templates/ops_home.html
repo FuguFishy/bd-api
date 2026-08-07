@@ -19,22 +19,22 @@
     <article class="summary-card">
       <p class="summary-label">SmartJobs running</p>
       <p class="summary-value">{{ summary.active_runs or 0 }}</p>
-      <p class="summary-note">Current workflow and scrape runs in progress.</p>
+      <p class="summary-note">Current SmartJobs scrape runs in progress.</p>
     </article>
     <article class="summary-card">
       <p class="summary-label">SmartJobs failed (7d)</p>
       <p class="summary-value">{{ summary.failed_runs_7d or 0 }}</p>
-      <p class="summary-note">Recent failed runs that need review.</p>
+      <p class="summary-note">Recent SmartJobs failures that need review.</p>
     </article>
     <article class="summary-card">
-      <p class="summary-label">Review queue pending</p>
+      <p class="summary-label">Review queue open</p>
       <p class="summary-value">{{ summary.pending_linkedin_reviews or 0 }}</p>
-      <p class="summary-note">LinkedIn rows waiting for manual review.</p>
+      <p class="summary-note">Open SmartJobs and LinkedIn review items.</p>
     </article>
     <article class="summary-card">
-      <p class="summary-label">Stale running</p>
+      <p class="summary-label">Stale SmartJobs runs</p>
       <p class="summary-value">{{ summary.stale_running_runs or 0 }}</p>
-      <p class="summary-note">Runs that may be stuck and need checking.</p>
+      <p class="summary-note">Scrapes still running after two hours.</p>
     </article>
   </section>
 
@@ -52,10 +52,11 @@
         <table class="ops-table">
           <thead>
             <tr>
-              <th>Workflow</th>
+              <th>Source</th>
               <th>Status</th>
-              <th>Processed</th>
-              <th>Flagged</th>
+              <th>Seen</th>
+              <th>Matched</th>
+              <th>Review handoffs</th>
               <th>Duration</th>
               <th>Error</th>
             </tr>
@@ -64,14 +65,15 @@
             {% for run in smartjobs_runs %}
             <tr>
               <td>
-                <div class="table-title">{{ run.workflow_name }}</div>
-                <div class="muted">{{ run.run_type or "smartjobs" }}</div>
+                <div class="table-title">{{ run.source_name }}</div>
+                <div class="muted">Run #{{ run.id }}</div>
               </td>
               <td><span class="status-pill status-{{ run.status }}">{{ run.status }}</span></td>
-              <td>{{ run.records_processed if run.records_processed is not none else "-" }}</td>
-              <td>{{ run.records_flagged if run.records_flagged is not none else "-" }}</td>
+              <td>{{ run.jobs_seen if run.jobs_seen is not none else "-" }}</td>
+              <td>{{ run.jobs_matched if run.jobs_matched is not none else "-" }}</td>
+              <td>{{ run.review_items_created if run.review_items_created is not none else "-" }}</td>
               <td>{% if run.duration_seconds is not none %}{{ run.duration_seconds }}s{% else %}-{% endif %}</td>
-              <td class="truncate" title="{{ run.error_summary or '' }}">{{ run.error_summary or "-" }}</td>
+              <td class="truncate" title="{{ run.error_message or '' }}">{{ run.error_message or "-" }}</td>
             </tr>
             {% endfor %}
           </tbody>

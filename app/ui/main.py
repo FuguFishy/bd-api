@@ -1,6 +1,7 @@
 from datetime import datetime
 from pathlib import Path
 from typing import Generator
+from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -18,6 +19,7 @@ from app.services.linkedin_review_actions import (
 )
 
 BASE_DIR = Path(__file__).resolve().parent
+BRISBANE_TZ = ZoneInfo("Australia/Brisbane")
 
 app = FastAPI(title="BD API UI")
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
@@ -58,7 +60,7 @@ def render_page(
 @app.get("/", response_class=HTMLResponse)
 def ui_home(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     summary = crud.get_ops_dashboard_summary(db)
-    today = datetime.now().date()
+    today = datetime.now(BRISBANE_TZ).date()
     smartjobs_runs = crud.list_smartjobs_runs_for_day(db, day=today)
     review_queue_runs = crud.list_review_queue_runs(db, limit=8)
     linkedin_import_runs = crud.list_linkedin_import_runs_ui(db, limit=8)
