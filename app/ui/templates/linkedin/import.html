@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section>
+  <h2>Upload LinkedIn Connections.csv</h2>
+  <form method="post" enctype="multipart/form-data">
+    <div>
+      <label for="file">CSV file</label><br>
+      <input type="file" id="file" name="file" accept=".csv" required>
+    </div>
+
+    <div style="margin-top: 1rem;">
+      <label for="uploaded_by">Uploaded by</label><br>
+      <input type="text" id="uploaded_by" name="uploaded_by" placeholder="Graham">
+    </div>
+
+    <div style="margin-top: 1rem;">
+      <button type="submit">Upload and process</button>
+    </div>
+  </form>
+
+  <p style="margin-top: 1rem;">
+    Export from LinkedIn: Settings → Data privacy → Get a copy of your data → Connections.
+  </p>
+</section>
+{% endblock %}

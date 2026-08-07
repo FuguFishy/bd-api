@@ -1,0 +1,5 @@
+{% if flash %}
+  <div class="flash flash-{{ flash.level or 'info' }}">
+    {{ flash.message }}
+  </div>
+{% endif %}

@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}Organisation Detail{% endblock %}
+
+{% block content %}
+
+<div class="section">
+  <h2>Organisation summary</h2>
+  <div class="two-col">
+    <div class="card">
+      <p><strong>Name:</strong> {{ organisation.name }}</p>
+      <p><strong>Short name:</strong> {{ organisation.short_name or "" }}</p>
+      <p><strong>Sector:</strong> {{ organisation.sector or "" }}</p>
+      <p><strong>Tier:</strong> {{ organisation.tier or "" }}</p>
+    </div>
+    <div class="card">
+      <p><strong>Account status:</strong> {{ organisation.account_status or "" }}</p>
+      <p><strong>Last contact date:</strong> {{ organisation.last_contact_date or "" }}</p>
+      <p><strong>Notes:</strong> {{ organisation.notes or "" }}</p>
+    </div>
+  </div>
+
+  <div class="quick-actions">
+    <a class="button" href="/ui/contacts/new?organisation_id={{ organisation.id }}">Add contact</a>
+    <a class="button" href="/ui/projects/new?organisation_id={{ organisation.id }}">Add project</a>
+    <a class="button" href="/ui/activities/new?organisation_id={{ organisation.id }}">Log activity</a>
+    <a class="button" href="/ui/tasks/new?organisation_id={{ organisation.id }}">Create task</a>
+    <a class="button button-secondary" href="/ui/organisations/{{ organisation.id }}/edit">Edit organisation</a>
+  </div>
+</div>
+
+<div class="section">
+  <h2>Contacts</h2>
+  {% if contacts %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Position</th>
+            <th>Department</th>
+            <th>Relationship</th>
+            <th>LinkedIn</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for contact in contacts %}
+          <tr>
+            <td><a href="/ui/contacts/{{ contact.id }}">{{ contact.full_name }}</a></td>
+            <td>{{ contact.position_title or "" }}</td>
+            <td>{{ contact.department or "" }}</td>
+            <td>{{ contact.relationship_type or "" }}</td>
+            <td>
+              {% if contact.linkedin_profile_url %}
+                <a href="{{ contact.linkedin_profile_url }}" target="_blank" rel="noopener noreferrer">Profile</a>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">No contacts linked to this organisation.</p>
+  {% endif %}
+</div>
+
+<div class="section">
+  <h2>Projects</h2>
+  {% if projects %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Project type</th>
+            <th>Status</th>
+            <th>Signal</th>
+            <th>Strategic importance</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for project in projects %}
+          <tr>
+            <td><a href="/ui/projects/{{ project.id }}">{{ project.name }}</a></td>
+            <td>{{ project.project_type or "" }}</td>
+            <td>{{ project.status or "" }}</td>
+            <td>{{ project.opportunity_signal or "" }}</td>
+            <td>{{ project.strategic_importance or "" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">No projects linked to this organisation.</p>
+  {% endif %}
+</div>
+
+<div class="section">
+  <h2>Recent activities</h2>
+  {% if activities %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Contact</th>
+            <th>Outcome</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for activity in activities %}
+          <tr>
+            <td>{{ activity.activity_date or "" }}</td>
+            <td>{{ activity.activity_type or "" }}</td>
+            <td>{{ activity.contact_id or "" }}</td>
+            <td>{{ activity.outcome or "" }}</td>
+            <td>{{ activity.notes or "" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">No activities linked to this organisation.</p>
+  {% endif %}
+</div>
+
+<div class="section">
+  <h2>Open tasks</h2>
+  {% if tasks %}
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Due date</th>
+            <th>Task type</th>
+            <th>Priority</th>
+            <th>Status</th>
+            <th>Owner</th>
+            <th>Reason</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for task in tasks %}
+          <tr>
+            <td>{{ task.due_date or "" }}</td>
+            <td>{{ task.task_type or "" }}</td>
+            <td>{{ task.priority or "" }}</td>
+            <td>{{ task.status or "" }}</td>
+            <td>{{ task.owner or "" }}</td>
+            <td>{{ task.reason or "" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <p class="muted">No tasks linked to this organisation.</p>
+  {% endif %}
+</div>
+{% endblock %}

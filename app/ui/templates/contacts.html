@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/ui/static/crm.css" />
+{% endblock %}
+
+{% block content %}
+
+  <section class="stack">
+    <div class="panel-grid">
+      <section class="panel">
+        
+        <form class="form-grid" method="post" action="/contacts">
+          <div class="form-row">
+            <label for="organisation_id">Organisation</label>
+            <select id="organisation_id" name="organisation_id" required>
+              <option value="">Select organisation</option>
+              {% for organisation in organisations %}
+                <option
+                  value="{{ organisation.id }}"
+                  {% if selected_organisation_id == organisation.id %}selected{% endif %}
+                >
+                  {{ organisation.name }}
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-row">
+            <label for="first_name">First name</label>
+            <input id="first_name" name="first_name" type="text" />
+          </div>
+
+          <div class="form-row">
+            <label for="last_name">Last name</label>
+            <input id="last_name" name="last_name" type="text" />
+          </div>
+
+          <div class="form-row">
+            <label for="full_name">Full name</label>
+            <input id="full_name" name="full_name" type="text" required />
+          </div>
+
+          <div class="form-row">
+            <label for="position_title">Position title</label>
+            <input id="position_title" name="position_title" type="text" />
+          </div>
+
+          <div class="form-row">
+            <label for="department">Department</label>
+            <input id="department" name="department" type="text" />
+          </div>
+
+          <div class="form-row">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" />
+          </div>
+
+          <div class="form-row">
+            <label for="phone">Phone</label>
+            <input id="phone" name="phone" type="text" />
+          </div>
+
+          <div class="form-row">
+            <label for="linkedin_profile_url">LinkedIn profile URL</label>
+            <input id="linkedin_profile_url" name="linkedin_profile_url" type="url" />
+          </div>
+
+          <div class="page-actions">
+            <button type="submit" class="button button-primary">Create Contact</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Usage notes</h2>
+          <p>This page matters because it feeds LinkedIn review resolution and follow-up workflows.</p>
+        </div>
+
+        <div class="empty-state">
+          Prefer linking contacts to the right organisation at creation time. That reduces later matching friction and duplicate review work.
+        </div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Current Contacts</h2>
+        <p>Review the current contact list and organisation links.</p>
+      </div>
+
+      {% if contacts %}
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Organisation</th>
+                <th>Title</th>
+                <th>Department</th>
+                <th>Email</th>
+                <th>LinkedIn</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for contact in contacts %}
+                <tr>
+                  <td>{{ contact.full_name or ((contact.first_name or "") ~ " " ~ (contact.last_name or "")) }}</td>
+                  <td>{{ contact.organisation_name or contact.organisation_id or "—" }}</td>
+                  <td>{{ contact.position_title or "—" }}</td>
+                  <td>{{ contact.department or "—" }}</td>
+                  <td>{{ contact.email or "—" }}</td>
+                  <td>
+                    {% if contact.linkedin_profile_url %}
+                      <a
+                        class="text-link"
+                        href="{{ contact.linkedin_profile_url }}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Open
+                      </a>
+                    {% else %}
+                      —
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-state">
+          No contacts have been added yet.
+        </div>
+      {% endif %}
+    </section>
+  </section>
+{% endblock %}

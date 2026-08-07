@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="/ui/static/crm.css" />
+{% endblock %}
+
+{% block content %}
+
+  <section class="stack">
+    <div class="panel-grid">
+      <section class="panel">
+        
+        <form class="form-grid" method="post" action="/organisations">
+          <div class="form-row">
+            <label for="name">Organisation name</label>
+            <input id="name" name="name" type="text" required />
+          </div>
+
+          <div class="form-row">
+            <label for="short_name">Short name</label>
+            <input id="short_name" name="short_name" type="text" />
+          </div>
+
+          <div class="form-row">
+            <label for="sector">Sector</label>
+            <input id="sector" name="sector" type="text" placeholder="Government, Infrastructure, Utilities" />
+          </div>
+
+          <div class="form-row">
+            <label for="tier">Tier</label>
+            <input id="tier" name="tier" type="text" placeholder="Target, Active, Strategic" />
+          </div>
+
+          <div class="form-row">
+            <label for="account_status">Account status</label>
+            <input id="account_status" name="account_status" type="text" placeholder="Prospect, Active, Dormant" />
+          </div>
+
+          <div class="form-row">
+            <label for="notes">Notes</label>
+            <textarea id="notes" name="notes"></textarea>
+          </div>
+
+          <div class="page-actions">
+            <button type="submit" class="button button-primary">Create Organisation</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>How this page should work</h2>
+          <p>Keep this screen operational, not fancy.</p>
+        </div>
+
+        <div class="empty-state">
+          Use this page for manual account creation and quick browsing. Avoid adding custom widgets here unless they directly improve search, matching, or review throughput.
+        </div>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="panel-header">
+        <h2>Current Organisations</h2>
+        <p>Browse existing organisations and open the detailed workspace view.</p>
+      </div>
+
+      {% if organisations %}
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Short name</th>
+                <th>Sector</th>
+                <th>Tier</th>
+                <th>Status</th>
+                <th>Open</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for organisation in organisations %}
+                <tr>
+                  <td>{{ organisation.name }}</td>
+                  <td>{{ organisation.short_name or "—" }}</td>
+                  <td>{{ organisation.sector or "—" }}</td>
+                  <td>{{ organisation.tier or "—" }}</td>
+                  <td>{{ organisation.account_status or "—" }}</td>
+                  <td>
+                    <a class="text-link" href="/ui/organisations/{{ organisation.id }}">View</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-state">
+          No organisations have been added yet.
+        </div>
+      {% endif %}
+    </section>
+  </section>
+{% endblock %}

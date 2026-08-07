@@ -1,0 +1,17 @@
+<div class="page-header">
+  <div>
+    {% if kicker %}
+      <p class="eyebrow">{{ kicker }}</p>
+    {% endif %}
+    <h1>{{ heading }}</h1>
+    {% if description %}
+      <p class="page-description">{{ description }}</p>
+    {% endif %}
+  </div>
+
+  {% if actions %}
+    <div class="page-actions">
+      {{ actions | safe }}
+    </div>
+  {% endif %}
+</div>

@@ -4,8 +4,8 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from app.core.config import get_settings
-from app.db.base import Base
-from app.models import contact, organisation, project  # noqa
+from app.db.models import Base
+from app.db import models  # noqa: F401
 
 config = context.config
 
@@ -17,6 +17,25 @@ config.set_main_option("sqlalchemy.url", settings.database_url)
 
 target_metadata = Base.metadata
 
+IGNORED_TABLES = {
+    "review_queue",
+    "review_queue_actions",
+    "scrape_runs",
+    "workflowruns",
+}
+
+
+def include_object(object_, name, type_, reflected, compare_to):
+    if type_ == "table" and name in IGNORED_TABLES:
+        return False
+
+    if type_ == "index" and reflected:
+        table = getattr(object_, "table", None)
+        if table is not None and table.name in IGNORED_TABLES:
+            return False
+
+    return True
+
 
 def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
@@ -25,6 +44,9 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        compare_type=True,
+        compare_server_default=True,
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -42,6 +64,9 @@ def run_migrations_online() -> None:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
+            compare_type=True,
+            compare_server_default=True,
+            include_object=include_object,
         )
 
         with context.begin_transaction():

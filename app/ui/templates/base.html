@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ page_title }} · BD Platform</title>
+    <link rel="stylesheet" href="/ui/static/app.css" />
+    {% block extra_css %}{% endblock %}
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">BD</div>
+          <div>
+            <p class="brand-title">BD Platform</p>
+            <p class="brand-subtitle">Operations + CRM</p>
+          </div>
+        </div>
+
+        <div class="nav-section">
+          <p class="nav-section-label">BD Ops</p>
+          <nav class="nav" aria-label="BD Ops">
+            <a href="/ui/" class="nav-link {% if active_page == 'ops' %}is-active{% endif %}">
+              Dashboard
+            </a>
+          </nav>
+        </div>
+
+        <div class="nav-section">
+          <p class="nav-section-label">LinkedIn</p>
+          <nav class="nav" aria-label="LinkedIn">
+            <a href="/ui/linkedin/import" class="nav-link {% if active_page == 'linkedin_import' %}is-active{% endif %}">
+              Import
+            </a>
+            <a href="/ui/linkedin/review" class="nav-link {% if active_page == 'linkedin_review' %}is-active{% endif %}">
+              Review queue
+            </a>
+          </nav>
+        </div>
+
+        <div class="nav-section">
+          <p class="nav-section-label">CRM</p>
+          <nav class="nav" aria-label="CRM">
+            <a href="/ui/crm" class="nav-link {% if active_page == 'crm' %}is-active{% endif %}">
+              CRM
+            </a>
+            <a href="/ui/organisations" class="nav-link {% if active_page == 'organisations' %}is-active{% endif %}">
+              Organisations
+            </a>
+            <a href="/ui/contacts" class="nav-link {% if active_page == 'contacts' %}is-active{% endif %}">
+              Contacts
+            </a>
+            <a href="/ui/projects" class="nav-link {% if active_page == 'projects' %}is-active{% endif %}">
+              Projects
+            </a>
+            <a href="/ui/activities" class="nav-link {% if active_page == 'activities' %}is-active{% endif %}">
+              Activities
+            </a>
+            <a href="/ui/tasks" class="nav-link {% if active_page == 'tasks' %}is-active{% endif %}">
+              Tasks
+            </a>
+          </nav>
+        </div>
+
+        <button
+          type="button"
+          class="theme-toggle"
+          id="theme-toggle"
+          aria-label="Toggle theme"
+        >
+          Toggle theme
+        </button>
+      </aside>
+
+      <div class="main-shell">
+        <header class="topbar">
+          <div class="content">
+            <p class="topbar-kicker">BD Platform</p>
+            <h1 class="topbar-title">{{ heading }}</h1>
+          </div>
+        </header>
+
+        <main id="main-content" class="content">
+          <section class="page-header">
+            <div>
+              <h2>{{ heading }}</h2>
+              {% if description %}
+              <p class="page-description">{{ description }}</p>
+              {% endif %}
+            </div>
+            {% block page_actions %}{% endblock %}
+          </section>
+
+          {% block content %}{% endblock %}
+        </main>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        const root = document.documentElement;
+        const button = document.getElementById("theme-toggle");
+        let theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        root.setAttribute("data-theme", theme);
+
+        if (button) {
+          button.addEventListener("click", function () {
+            theme = theme === "dark" ? "light" : "dark";
+            root.setAttribute("data-theme", theme);
+          });
+        }
+      })();
+    </script>
+
+    {% block extra_js %}{% endblock %}
+  </body>
+</html>
