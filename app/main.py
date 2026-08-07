@@ -1,9 +1,13 @@
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 
+from app.api.routes import ops_dashboard, scrape_runs
 from app.ui.main import app as ui_app
 
 app = FastAPI(title="BD API")
+
+app.include_router(scrape_runs.router)
+app.include_router(ops_dashboard.router)
 
 
 @app.get("/")
