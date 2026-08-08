@@ -61,7 +61,7 @@ def hash_row(full_name: str, company_name: str | None, connected_on: str | None,
 
 
 def create_import_run(db: Session, filename: str, uploaded_by: str | None = None):
-    run = models.LinkedInImportRun(
+    run = models.LinkedinImportRun(
         filename=filename,
         uploaded_by=uploaded_by,
         status="uploaded",
@@ -97,7 +97,7 @@ def stage_connections(db: Session, run_id: int, rows: list[dict[str, Any]]):
             linkedin_profile_url=profile_url,
         )
 
-        item = models.LinkedInConnectionStaging(
+        item = models.LinkedinConnectionStaging(
             import_run_id=run_id,
             source_row_hash=source_row_hash,
             full_name_raw=full_name_raw,
@@ -117,7 +117,7 @@ def stage_connections(db: Session, run_id: int, rows: list[dict[str, Any]]):
 
     db.flush()
 
-    run = db.query(models.LinkedInImportRun).filter(models.LinkedInImportRun.id == run_id).first()
+    run = db.query(models.LinkedinImportRun).filter(models.LinkedinImportRun.id == run_id).first()
     if run:
         run.rows_received = len(rows)
         run.status = "staged"

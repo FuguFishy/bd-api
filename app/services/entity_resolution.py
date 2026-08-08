@@ -106,8 +106,8 @@ def process_staged_linkedin_row(db: Session, staged_row):
         staged_row.processed_at = datetime.now(timezone.utc)
 
         run = (
-            db.query(models.LinkedInImportRun)
-            .filter(models.LinkedInImportRun.id == staged_row.import_run_id)
+            db.query(models.LinkedinImportRun)
+            .filter(models.LinkedinImportRun.id == staged_row.import_run_id)
             .first()
         )
         if run:
@@ -209,8 +209,8 @@ def process_staged_linkedin_row(db: Session, staged_row):
     staged_row.processed_at = datetime.now(timezone.utc)
 
     run = (
-        db.query(models.LinkedInImportRun)
-        .filter(models.LinkedInImportRun.id == staged_row.import_run_id)
+        db.query(models.LinkedinImportRun)
+        .filter(models.LinkedinImportRun.id == staged_row.import_run_id)
         .first()
     )
     if run:

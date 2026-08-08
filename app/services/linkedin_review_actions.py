@@ -15,8 +15,8 @@ def approve_staged_row_create_contact(
     reviewer: str | None = None,
 ):
     staged_row = (
-        db.query(models.LinkedInConnectionStaging)
-        .filter(models.LinkedInConnectionStaging.id == staged_row_id)
+        db.query(models.LinkedinConnectionStaging)
+        .filter(models.LinkedinConnectionStaging.id == staged_row_id)
         .first()
     )
     if not staged_row:
@@ -108,8 +108,8 @@ def skip_staged_row(
     note: str | None = None,
 ):
     staged_row = (
-        db.query(models.LinkedInConnectionStaging)
-        .filter(models.LinkedInConnectionStaging.id == staged_row_id)
+        db.query(models.LinkedinConnectionStaging)
+        .filter(models.LinkedinConnectionStaging.id == staged_row_id)
         .first()
     )
     if not staged_row:
