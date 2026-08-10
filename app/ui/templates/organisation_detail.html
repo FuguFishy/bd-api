@@ -15,15 +15,9 @@
             <p>Core account information for this organisation.</p>
           </div>
           
-          <form method="post" action="/ui/organisations/{{ organisation.id }}/edit">
-            <label for="name">Organisation name</label>
-            <input id="name" name="name" type="text" value="{{ organisation.name }}" required>
-
-            <label for="short_name">Short name</label>
-            <input id="short_name" name="short_name" type="text" value="{{ organisation.short_name or '' }}">
-
-            <button type="submit">Save changes</button>
-         </form>
+          <div class="page-actions">
+            <a class="button button-primary" href="/ui/organisations/{{ organisation.id }}/edit">Edit Organisation</a>
+          </div>
            
           <div class="form-grid">
             <div class="form-row">

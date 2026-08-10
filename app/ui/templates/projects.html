@@ -10,7 +10,7 @@
     <div class="panel-grid">
       <section class="panel">
         
-        <form class="form-grid" method="post" action="/projects">
+        <form class="form-grid" method="post" action="/ui/projects">
           <div class="form-row">
             <label for="organisation_id">Organisation</label>
             <select id="organisation_id" name="organisation_id" required>
@@ -42,8 +42,8 @@
           </div>
 
           <div class="form-row">
-            <label for="description">Description</label>
-            <textarea id="description" name="description"></textarea>
+            <label for="notes">Notes</label>
+            <textarea id="notes" name="notes"></textarea>
           </div>
 
           <div class="page-actions">
@@ -79,6 +79,7 @@
                 <th>Organisation</th>
                 <th>Type</th>
                 <th>Status</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -88,6 +89,7 @@
                   <td>{{ project.organisation_name or project.organisation_id or "—" }}</td>
                   <td>{{ project.project_type or "—" }}</td>
                   <td>{{ project.status or "—" }}</td>
+                  <td><a class="text-link" href="/ui/projects/{{ project.id }}/edit">Edit</a></td>
                 </tr>
               {% endfor %}
             </tbody>

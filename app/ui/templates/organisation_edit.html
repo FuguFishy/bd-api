@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block head %}<link rel="stylesheet" href="/ui/static/crm.css" />{% endblock %}
+{% block content %}
+<section class="stack">
+  <section class="panel">
+    <form class="form-grid" method="post" action="/ui/organisations/{{ organisation.id }}/edit">
+      <div class="form-row"><label for="name">Organisation name</label><input id="name" name="name" value="{{ organisation.name }}" required></div>
+      <div class="form-row"><label for="short_name">Short name</label><input id="short_name" name="short_name" value="{{ organisation.short_name or '' }}"></div>
+      <div class="form-row"><label for="sector">Sector</label><input id="sector" name="sector" value="{{ organisation.sector or '' }}"></div>
+      <div class="form-row"><label for="tier">Tier</label><input id="tier" name="tier" value="{{ organisation.tier or '' }}"></div>
+      <div class="form-row"><label for="account_status">Account status</label><input id="account_status" name="account_status" value="{{ organisation.account_status or '' }}"></div>
+      <div class="form-row"><label for="last_contact_date">Last contact date</label><input id="last_contact_date" name="last_contact_date" type="date" value="{{ organisation.last_contact_date or '' }}"></div>
+      <div class="form-row"><label for="notes">Notes</label><textarea id="notes" name="notes">{{ organisation.notes or '' }}</textarea></div>
+      <div class="page-actions">
+        <button type="submit" class="button button-primary">Save Changes</button>
+        <a class="button button-secondary" href="/ui/organisations/{{ organisation.id }}">Cancel</a>
+      </div>
+    </form>
+  </section>
+</section>
+{% endblock %}

@@ -10,7 +10,7 @@
     <div class="panel-grid">
       <section class="panel">
         
-        <form class="form-grid" method="post" action="/organisations">
+        <form class="form-grid" method="post" action="/ui/organisations">
           <div class="form-row">
             <label for="name">Organisation name</label>
             <input id="name" name="name" type="text" required />
@@ -75,7 +75,7 @@
                 <th>Sector</th>
                 <th>Tier</th>
                 <th>Status</th>
-                <th>Open</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -88,6 +88,8 @@
                   <td>{{ organisation.account_status or "—" }}</td>
                   <td>
                     <a class="text-link" href="/ui/organisations/{{ organisation.id }}">View</a>
+                    <span class="muted">·</span>
+                    <a class="text-link" href="/ui/organisations/{{ organisation.id }}/edit">Edit</a>
                   </td>
                 </tr>
               {% endfor %}

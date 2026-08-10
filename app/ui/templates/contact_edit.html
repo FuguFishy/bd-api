@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block head %}<link rel="stylesheet" href="/ui/static/crm.css" />{% endblock %}
+{% block content %}
+<section class="stack">
+  <section class="panel">
+    <form class="form-grid" method="post" action="/ui/contacts/{{ contact.id }}/edit">
+      <div class="form-row"><label for="organisation_id">Organisation</label>
+        <select id="organisation_id" name="organisation_id" required>
+          {% for organisation in organisations %}
+          <option value="{{ organisation.id }}" {% if contact.organisation_id == organisation.id %}selected{% endif %}>{{ organisation.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row"><label for="first_name">First name</label><input id="first_name" name="first_name" value="{{ contact.first_name or '' }}"></div>
+      <div class="form-row"><label for="last_name">Last name</label><input id="last_name" name="last_name" value="{{ contact.last_name or '' }}"></div>
+      <div class="form-row"><label for="full_name">Full name</label><input id="full_name" name="full_name" value="{{ contact.full_name or '' }}" required></div>
+      <div class="form-row"><label for="position_title">Position title</label><input id="position_title" name="position_title" value="{{ contact.position_title or '' }}"></div>
+      <div class="form-row"><label for="department">Department</label><input id="department" name="department" value="{{ contact.department or '' }}"></div>
+      <div class="form-row"><label for="email">Email</label><input id="email" name="email" type="email" value="{{ contact.email or '' }}"></div>
+      <div class="form-row"><label for="linkedin_profile_url">LinkedIn profile URL</label><input id="linkedin_profile_url" name="linkedin_profile_url" type="url" value="{{ contact.linkedin_profile_url or '' }}"></div>
+      <div class="page-actions">
+        <button type="submit" class="button button-primary">Save Changes</button>
+        <a class="button button-secondary" href="/ui/contacts?organisation_id={{ contact.organisation_id }}">Cancel</a>
+      </div>
+    </form>
+  </section>
+</section>
+{% endblock %}

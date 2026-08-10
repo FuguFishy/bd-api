@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from typing import Generator
 from zoneinfo import ZoneInfo
@@ -35,6 +35,20 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+def clean_optional(value: str | None) -> str | None:
+    value = (value or "").strip()
+    return value or None
+
+
+def optional_id(value: str | None) -> int | None:
+    return int(value) if value else None
+
+
+def optional_date(value: str | None) -> date | None:
+    return date.fromisoformat(value) if value else None
+
 
 
 def render_page(
@@ -104,6 +118,82 @@ def organisations_page(request: Request, db: Session = Depends(get_db)) -> HTMLR
         description="Add organisations manually and browse the current list.",
         active_page="organisations",
         organisations=organisations,
+    )
+
+
+@app.post("/organisations")
+def create_organisation_from_form(
+    name: str = Form(...),
+    short_name: str | None = Form(default=None),
+    sector: str | None = Form(default=None),
+    tier: str | None = Form(default=None),
+    account_status: str | None = Form(default=None),
+    notes: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    crud.create_organisation(
+        db,
+        {
+            "name": name.strip(),
+            "short_name": clean_optional(short_name),
+            "sector": clean_optional(sector),
+            "tier": clean_optional(tier),
+            "account_status": clean_optional(account_status),
+            "notes": clean_optional(notes),
+        },
+    )
+    return RedirectResponse(url="/ui/organisations", status_code=303)
+
+
+@app.get("/organisations/{organisation_id}/edit", response_class=HTMLResponse)
+def edit_organisation_page(
+    request: Request,
+    organisation_id: int,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    organisation = crud.get_organisation(db, organisation_id)
+    if not organisation:
+        return RedirectResponse(url="/ui/organisations", status_code=303)
+
+    return render_page(
+        request,
+        "organisation_edit.html",
+        page_title=f"Edit {organisation.name}",
+        heading="Edit Organisation",
+        description="Update account details for this organisation.",
+        active_page="organisations",
+        organisation=organisation,
+    )
+
+
+@app.post("/organisations/{organisation_id}/edit")
+def update_organisation_from_form(
+    organisation_id: int,
+    name: str = Form(...),
+    short_name: str | None = Form(default=None),
+    sector: str | None = Form(default=None),
+    tier: str | None = Form(default=None),
+    account_status: str | None = Form(default=None),
+    notes: str | None = Form(default=None),
+    last_contact_date: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    crud.update_organisation(
+        db,
+        organisation_id,
+        {
+            "name": name.strip(),
+            "short_name": clean_optional(short_name),
+            "sector": clean_optional(sector),
+            "tier": clean_optional(tier),
+            "account_status": clean_optional(account_status),
+            "notes": clean_optional(notes),
+            "last_contact_date": optional_date(last_contact_date),
+        },
+    )
+    return RedirectResponse(
+        url=f"/ui/organisations/{organisation_id}",
+        status_code=303,
     )
 
 
@@ -194,6 +284,70 @@ def create_contact_from_form(
     )
 
 
+@app.get("/contacts/{contact_id}/edit", response_class=HTMLResponse)
+def edit_contact_page(
+    request: Request,
+    contact_id: int,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    contact = crud.get_contact(db, contact_id)
+    if not contact:
+        return RedirectResponse(url="/ui/contacts", status_code=303)
+
+    return render_page(
+        request,
+        "contact_edit.html",
+        page_title=f"Edit {contact.full_name or contact.first_name}",
+        heading="Edit Contact",
+        description="Update contact details and organisation link.",
+        active_page="contacts",
+        contact=contact,
+        organisations=crud.list_organisations(db),
+    )
+
+
+@app.post("/contacts/{contact_id}/edit")
+def update_contact_from_form(
+    contact_id: int,
+    organisation_id: int = Form(...),
+    first_name: str | None = Form(default=None),
+    last_name: str | None = Form(default=None),
+    full_name: str = Form(...),
+    position_title: str | None = Form(default=None),
+    department: str | None = Form(default=None),
+    email: str | None = Form(default=None),
+    linkedin_profile_url: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    clean_full_name = full_name.strip()
+    name_parts = clean_full_name.split(maxsplit=1)
+
+    clean_first_name = clean_optional(first_name) or name_parts[0]
+    clean_last_name = clean_optional(last_name)
+    if not clean_last_name and len(name_parts) > 1:
+        clean_last_name = name_parts[1]
+
+    crud.update_contact(
+        db,
+        contact_id,
+        {
+            "organisation_id": organisation_id,
+            "first_name": clean_first_name,
+            "last_name": clean_last_name or "",
+            "full_name": clean_full_name,
+            "position_title": clean_optional(position_title),
+            "department": clean_optional(department),
+            "email": clean_optional(email),
+            "linkedin_profile_url": clean_optional(linkedin_profile_url),
+        },
+    )
+
+    return RedirectResponse(
+        url=f"/ui/contacts?organisation_id={organisation_id}",
+        status_code=303,
+    )
+
+
 @app.get("/projects", response_class=HTMLResponse)
 def projects_page(
     request: Request,
@@ -210,6 +364,101 @@ def projects_page(
         projects=crud.list_projects(db),
         organisations=crud.list_organisations(db),
         selected_organisation_id=organisation_id,
+    )
+
+
+@app.post("/projects")
+def create_project_from_form(
+    organisation_id: int = Form(...),
+    contact_id: str | None = Form(default=None),
+    name: str = Form(...),
+    project_type: str | None = Form(default=None),
+    status: str | None = Form(default=None),
+    opportunity_signal: str | None = Form(default=None),
+    strategic_importance: str | None = Form(default=None),
+    start_date: str | None = Form(default=None),
+    end_date: str | None = Form(default=None),
+    notes: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    crud.create_project(
+        db,
+        {
+            "organisation_id": organisation_id,
+            "contact_id": optional_id(contact_id),
+            "name": name.strip(),
+            "project_type": clean_optional(project_type),
+            "status": clean_optional(status),
+            "opportunity_signal": clean_optional(opportunity_signal),
+            "strategic_importance": clean_optional(strategic_importance),
+            "start_date": optional_date(start_date),
+            "end_date": optional_date(end_date),
+            "notes": clean_optional(notes),
+        },
+    )
+    return RedirectResponse(
+        url=f"/ui/projects?organisation_id={organisation_id}",
+        status_code=303,
+    )
+
+
+@app.get("/projects/{project_id}/edit", response_class=HTMLResponse)
+def edit_project_page(
+    request: Request,
+    project_id: int,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    project = crud.get_project(db, project_id)
+    if not project:
+        return RedirectResponse(url="/ui/projects", status_code=303)
+
+    return render_page(
+        request,
+        "project_edit.html",
+        page_title=f"Edit {project.name}",
+        heading="Edit Project",
+        description="Update project, opportunity, and relationship details.",
+        active_page="projects",
+        project=project,
+        organisations=crud.list_organisations(db),
+        contacts=crud.list_contacts(db),
+    )
+
+
+@app.post("/projects/{project_id}/edit")
+def update_project_from_form(
+    project_id: int,
+    organisation_id: int = Form(...),
+    contact_id: str | None = Form(default=None),
+    name: str = Form(...),
+    project_type: str | None = Form(default=None),
+    status: str | None = Form(default=None),
+    opportunity_signal: str | None = Form(default=None),
+    strategic_importance: str | None = Form(default=None),
+    start_date: str | None = Form(default=None),
+    end_date: str | None = Form(default=None),
+    notes: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    crud.update_project(
+        db,
+        project_id,
+        {
+            "organisation_id": organisation_id,
+            "contact_id": optional_id(contact_id),
+            "name": name.strip(),
+            "project_type": clean_optional(project_type),
+            "status": clean_optional(status),
+            "opportunity_signal": clean_optional(opportunity_signal),
+            "strategic_importance": clean_optional(strategic_importance),
+            "start_date": optional_date(start_date),
+            "end_date": optional_date(end_date),
+            "notes": clean_optional(notes),
+        },
+    )
+    return RedirectResponse(
+        url=f"/ui/projects?organisation_id={organisation_id}",
+        status_code=303,
     )
 
 

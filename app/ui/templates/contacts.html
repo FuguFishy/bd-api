@@ -96,6 +96,7 @@
                 <th>Department</th>
                 <th>Email</th>
                 <th>LinkedIn</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -119,6 +120,9 @@
                     {% else %}
                       —
                     {% endif %}
+                  </td>
+                  <td>
+                    <a class="text-link" href="/ui/contacts/{{ contact.id }}/edit">Edit</a>
                   </td>
                 </tr>
               {% endfor %}

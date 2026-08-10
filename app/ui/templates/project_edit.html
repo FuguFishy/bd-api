@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block head %}<link rel="stylesheet" href="/ui/static/crm.css" />{% endblock %}
+{% block content %}
+<section class="stack">
+  <section class="panel">
+    <form class="form-grid" method="post" action="/ui/projects/{{ project.id }}/edit">
+      <div class="form-row"><label for="organisation_id">Organisation</label>
+        <select id="organisation_id" name="organisation_id" required>
+          {% for organisation in organisations %}
+          <option value="{{ organisation.id }}" {% if project.organisation_id == organisation.id %}selected{% endif %}>{{ organisation.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row"><label for="contact_id">Primary contact</label>
+        <select id="contact_id" name="contact_id">
+          <option value="">No linked contact</option>
+          {% for contact in contacts %}
+          <option value="{{ contact.id }}" {% if project.contact_id == contact.id %}selected{% endif %}>{{ contact.full_name or ((contact.first_name or '') ~ ' ' ~ (contact.last_name or '')) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row"><label for="name">Project name</label><input id="name" name="name" value="{{ project.name }}" required></div>
+      <div class="form-row"><label for="project_type">Project type</label><input id="project_type" name="project_type" value="{{ project.project_type or '' }}"></div>
+      <div class="form-row"><label for="status">Status</label><input id="status" name="status" value="{{ project.status or '' }}"></div>
+      <div class="form-row"><label for="opportunity_signal">Opportunity signal</label><input id="opportunity_signal" name="opportunity_signal" value="{{ project.opportunity_signal or '' }}"></div>
+      <div class="form-row"><label for="strategic_importance">Strategic importance</label><input id="strategic_importance" name="strategic_importance" value="{{ project.strategic_importance or '' }}"></div>
+      <div class="form-row"><label for="start_date">Start date</label><input id="start_date" name="start_date" type="date" value="{{ project.start_date or '' }}"></div>
+      <div class="form-row"><label for="end_date">End date</label><input id="end_date" name="end_date" type="date" value="{{ project.end_date or '' }}"></div>
+      <div class="form-row"><label for="notes">Notes</label><textarea id="notes" name="notes">{{ project.notes or '' }}</textarea></div>
+      <div class="page-actions">
+        <button type="submit" class="button button-primary">Save Changes</button>
+        <a class="button button-secondary" href="/ui/projects?organisation_id={{ project.organisation_id }}">Cancel</a>
+      </div>
+    </form>
+  </section>
+</section>
+{% endblock %}
