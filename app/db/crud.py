@@ -71,8 +71,39 @@ def _contact_display_name(contact: Any) -> str:
 
 
 def _enrich_activities_with_labels(db: Session, activities: list[Any]) -> list[Any]:
-    contact_ids = list({activity.contact_id for activity in activities if getattr(activity, "contact_id", None)})
-    project_ids = list({activity.project_id for activity in activities if getattr(activity, "project_id", None)})
+    organisation_ids = list(
+        {
+            activity.organisation_id
+            for activity in activities
+            if getattr(activity, "organisation_id", None)
+        }
+    )
+    contact_ids = list(
+        {
+            activity.contact_id
+            for activity in activities
+            if getattr(activity, "contact_id", None)
+        }
+    )
+    project_ids = list(
+        {
+            activity.project_id
+            for activity in activities
+            if getattr(activity, "project_id", None)
+        }
+    )
+
+    organisation_lookup: dict[int, str] = {}
+    if organisation_ids:
+        organisation_rows = (
+            db.query(models.Organisation)
+            .filter(models.Organisation.id.in_(organisation_ids))
+            .all()
+        )
+        organisation_lookup = {
+            organisation.id: (organisation.name or f"Organisation {organisation.id}")
+            for organisation in organisation_rows
+        }
 
     contact_lookup: dict[int, str] = {}
     if contact_ids:
@@ -81,7 +112,10 @@ def _enrich_activities_with_labels(db: Session, activities: list[Any]) -> list[A
             .filter(models.Contact.id.in_(contact_ids))
             .all()
         )
-        contact_lookup = {contact.id: _contact_display_name(contact) for contact in contact_rows}
+        contact_lookup = {
+            contact.id: _contact_display_name(contact)
+            for contact in contact_rows
+        }
 
     project_lookup: dict[int, str] = {}
     if project_ids:
@@ -96,6 +130,7 @@ def _enrich_activities_with_labels(db: Session, activities: list[Any]) -> list[A
         }
 
     for activity in activities:
+        activity.organisation_name = organisation_lookup.get(activity.organisation_id)
         activity.contact_label = contact_lookup.get(activity.contact_id)
         activity.project_label = project_lookup.get(activity.project_id)
 
@@ -268,7 +303,35 @@ def list_contacts(
             )
         )
 
-    return query.order_by(models.Contact.full_name.asc()).all()
+    contacts = query.order_by(models.Contact.full_name.asc()).all()
+
+    organisation_ids = list(
+        {
+            contact.organisation_id
+            for contact in contacts
+            if getattr(contact, "organisation_id", None)
+        }
+    )
+
+    organisation_lookup: dict[int, str] = {}
+    if organisation_ids:
+        organisation_rows = (
+            db.query(models.Organisation)
+            .filter(models.Organisation.id.in_(organisation_ids))
+            .all()
+        )
+        organisation_lookup = {
+            organisation.id: (organisation.name or f"Organisation {organisation.id}")
+            for organisation in organisation_rows
+        }
+
+    for contact in contacts:
+        contact.organisation_name = (
+            organisation_lookup.get(contact.organisation_id)
+            or contact.organisation_name
+        )
+
+    return contacts
 
 
 def get_contact(db: Session, contact_id: int):
@@ -495,7 +558,8 @@ def list_activities(
     if project_id is not None:
         query = query.filter(models.Activity.project_id == project_id)
 
-    return query.order_by(models.Activity.activity_date.desc()).all()
+    activities = query.order_by(models.Activity.activity_date.desc()).all()
+    return _enrich_activities_with_labels(db, activities)
 
 
 def get_activity(db: Session, activity_id: int):
@@ -1050,3 +1114,200 @@ def list_ops_attention_items(db: Session):
         )
 
     return attention
+
+def get_daily_bd_actions(db: Session, today: datetime.date, contact_limit: int = 25) -> dict[str, Any]:
+    """Return a transparent, read-only daily BD action list."""
+    due_tasks = db.execute(
+        text(
+            """
+            select
+                t.id as task_id,
+                t.task_type,
+                t.reason,
+                t.priority,
+                t.due_date,
+                c.id as contact_id,
+                coalesce(c.full_name, trim(concat_ws(' ', c.first_name, c.last_name))) as contact_name,
+                o.id as organisation_id,
+                o.name as organisation_name
+            from public.tasks t
+            left join public.contacts c on c.id = t.contact_id
+            left join public.organisations o on o.id = coalesce(t.organisation_id, c.organisation_id)
+            where coalesce(lower(t.status), 'open') not in ('completed', 'complete', 'cancelled', 'canceled')
+              and t.due_date is not null
+              and t.due_date <= :today
+            order by
+                case when t.due_date < :today then 0 else 1 end,
+                case lower(coalesce(t.priority, ''))
+                    when 'high' then 0 when 'medium' then 1 when 'low' then 2 else 3 end,
+                t.due_date asc,
+                t.id asc
+            limit 50
+            """
+        ),
+        {"today": today},
+    ).mappings().all()
+
+    due_contacts = db.execute(
+        text(
+            """
+            with last_contact_activity as (
+                select contact_id, max(activity_date::date) as last_activity_date
+                from public.activities
+                where contact_id is not null
+                group by contact_id
+            ),
+            open_contact_tasks as (
+                select distinct contact_id
+                from public.tasks
+                where contact_id is not null
+                  and coalesce(lower(status), 'open') not in ('completed', 'complete', 'cancelled', 'canceled')
+            )
+            select
+                c.id as contact_id,
+                coalesce(c.full_name, trim(concat_ws(' ', c.first_name, c.last_name))) as contact_name,
+                c.position_title,
+                c.linkedin_profile_url,
+                c.linkedin_connection_status,
+                o.id as organisation_id,
+                o.name as organisation_name,
+                o.tier,
+                lca.last_activity_date,
+                case
+                    when o.tier = 'Tier 1' then 30
+                    when o.tier = 'Tier 2' then 60
+                    else 90
+                end as cadence_days,
+                case
+                    when lower(coalesce(c.linkedin_connection_status, '')) in ('not connected', 'not_connected', 'no')
+                        then 'Send LinkedIn connection request'
+                    when c.linkedin_profile_url is not null and trim(c.linkedin_profile_url) <> ''
+                        then 'Send LinkedIn message or log an activity'
+                    else 'Research contact channel and log an activity'
+                end as recommended_action
+            from public.contacts c
+            join public.organisations o on o.id = c.organisation_id and o.is_archived = false
+            left join last_contact_activity lca on lca.contact_id = c.id
+            left join open_contact_tasks oct on oct.contact_id = c.id
+            where oct.contact_id is null
+              and (
+                    lca.last_activity_date is null
+                    or lca.last_activity_date <= :today - (
+                        case
+                            when o.tier = 'Tier 1' then 30
+                            when o.tier = 'Tier 2' then 60
+                            else 90
+                        end
+                    )
+              )
+            order by
+                case o.tier when 'Tier 1' then 0 when 'Tier 2' then 1 when 'Tier 3' then 2 else 3 end,
+                lca.last_activity_date asc nulls first,
+                c.id asc
+            limit :contact_limit
+            """
+        ),
+        {"today": today, "contact_limit": contact_limit},
+    ).mappings().all()
+
+    due_contact_total = db.execute(
+        text(
+            """
+            with last_contact_activity as (
+                select contact_id, max(activity_date::date) as last_activity_date
+                from public.activities
+                where contact_id is not null
+                group by contact_id
+            ),
+            open_contact_tasks as (
+                select distinct contact_id
+                from public.tasks
+                where contact_id is not null
+                  and coalesce(lower(status), 'open') not in ('completed', 'complete', 'cancelled', 'canceled')
+            )
+            select count(*)
+            from public.contacts c
+            join public.organisations o on o.id = c.organisation_id and o.is_archived = false
+            left join last_contact_activity lca on lca.contact_id = c.id
+            left join open_contact_tasks oct on oct.contact_id = c.id
+            where oct.contact_id is null
+              and (
+                    lca.last_activity_date is null
+                    or lca.last_activity_date <= :today - (
+                        case when o.tier = 'Tier 1' then 30 when o.tier = 'Tier 2' then 60 else 90 end
+                    )
+              )
+            """
+        ),
+        {"today": today},
+    ).scalar_one()
+
+    linkedin_opportunities = db.execute(
+        text(
+            """
+            select
+                c.id as contact_id,
+                coalesce(c.full_name, trim(concat_ws(' ', c.first_name, c.last_name))) as contact_name,
+                c.position_title,
+                c.linkedin_profile_url,
+                o.id as organisation_id,
+                o.name as organisation_name,
+                o.tier
+            from public.contacts c
+            join public.organisations o on o.id = c.organisation_id and o.is_archived = false
+            where lower(coalesce(c.linkedin_connection_status, '')) in ('not connected', 'not_connected', 'no')
+              and c.linkedin_profile_url is not null
+              and trim(c.linkedin_profile_url) <> ''
+            order by case o.tier when 'Tier 1' then 0 when 'Tier 2' then 1 else 2 end, c.id asc
+            limit 25
+            """
+        )
+    ).mappings().all()
+
+    missing_linkedin_status = db.execute(
+        text(
+            """
+            select
+                c.id as contact_id,
+                coalesce(c.full_name, trim(concat_ws(' ', c.first_name, c.last_name))) as contact_name,
+                o.id as organisation_id,
+                o.name as organisation_name,
+                'Missing LinkedIn connection status' as reason
+            from public.contacts c
+            join public.organisations o on o.id = c.organisation_id and o.is_archived = false
+            where c.linkedin_connection_status is null or trim(c.linkedin_connection_status) = ''
+            order by c.id asc
+            limit 25
+            """
+        )
+    ).mappings().all()
+
+    pending_linkedin_reviews = db.execute(
+        text(
+            """
+            select count(*)
+            from public.linkedin_connection_staging
+            where review_status = 'pending'
+            """
+        )
+    ).scalar_one()
+
+    pending_review_queue = db.execute(
+        text(
+            """
+            select count(*)
+            from public.review_queue
+            where review_status in ('new', 'pending', 'open', 'watchlist')
+            """
+        )
+    ).scalar_one()
+
+    return {
+        "due_tasks": [dict(row) for row in due_tasks],
+        "due_contacts": [dict(row) for row in due_contacts],
+        "due_contact_total": due_contact_total,
+        "linkedin_opportunities": [dict(row) for row in linkedin_opportunities],
+        "missing_linkedin_status": [dict(row) for row in missing_linkedin_status],
+        "pending_linkedin_reviews": pending_linkedin_reviews,
+        "pending_review_queue": pending_review_queue,
+    }

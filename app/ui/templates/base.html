@@ -16,7 +16,7 @@
           <div class="brand-mark">BD</div>
           <div>
             <p class="brand-title">BD Platform</p>
-            <p class="brand-subtitle">Operations + CRM</p>
+            <p class="brand-subtitle">Revenue operations</p>
           </div>
         </div>
 
@@ -24,7 +24,7 @@
           <p class="nav-section-label">BD Ops</p>
           <nav class="nav" aria-label="BD Ops">
             <a href="/ui/" class="nav-link {% if active_page == 'ops' %}is-active{% endif %}">
-              Dashboard
+              Daily actions
             </a>
           </nav>
         </div>
@@ -77,21 +77,23 @@
           </nav>
         </div>
 
-        <button
-          type="button"
-          class="theme-toggle"
-          id="theme-toggle"
-          aria-label="Toggle theme"
-        >
-          Toggle theme
-        </button>
+        <div class="sidebar-footer">
+          <div class="system-status"><span></span> System online</div>
+          <button
+            type="button"
+            class="theme-toggle"
+            id="theme-toggle"
+            aria-label="Toggle theme"
+          >
+            Appearance
+          </button>
+        </div>
       </aside>
 
       <div class="main-shell">
         <header class="topbar">
           <div class="content">
             <p class="topbar-kicker">BD Platform</p>
-            <h1 class="topbar-title">{{ heading }}</h1>
           </div>
         </header>
 

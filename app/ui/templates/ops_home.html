@@ -3,209 +3,41 @@
 <section class="section-stack ops-page">
   <div class="ops-hero card">
     <div>
-      <p class="eyebrow">BD operations</p>
-      <h1>Daily ops overview</h1>
-      <p class="ops-tagline">
-        Monitor today's SmartJobs activity, review work, LinkedIn imports, and operational exceptions.
-      </p>
+      <p class="eyebrow">Daily BD actions</p>
+      <h1>What needs attention today</h1>
+      <p class="ops-tagline">Prioritised follow-ups, connection opportunities and data decisions for {{ today_date }}.</p>
     </div>
     <div class="ops-hero-actions">
-      <a class="btn btn-primary" href="/ui/linkedin/import">LinkedIn import</a>
-      <a class="btn button-secondary" href="/ui/linkedin/review">Review queue</a>
+      <a class="btn btn-primary" href="/ui/activities">Log activity</a>
+      <a class="btn button-secondary" href="/ui/tasks">Open tasks</a>
     </div>
   </div>
 
-  <section class="ops-summary-grid" aria-label="Operational summary">
-    <article class="summary-card">
-      <p class="summary-label">SmartJobs running</p>
-      <p class="summary-value">{{ summary.active_runs or 0 }}</p>
-      <p class="summary-note">Current SmartJobs scrape runs in progress.</p>
-    </article>
-    <article class="summary-card">
-      <p class="summary-label">SmartJobs failed (7d)</p>
-      <p class="summary-value">{{ summary.failed_runs_7d or 0 }}</p>
-      <p class="summary-note">Recent SmartJobs failures that need review.</p>
-    </article>
-    <article class="summary-card">
-      <p class="summary-label">Review queue open</p>
-      <p class="summary-value">{{ summary.pending_linkedin_reviews or 0 }}</p>
-      <p class="summary-note">Open SmartJobs and LinkedIn review items.</p>
-    </article>
-    <article class="summary-card">
-      <p class="summary-label">Stale SmartJobs runs</p>
-      <p class="summary-value">{{ summary.stale_running_runs or 0 }}</p>
-      <p class="summary-note">Scrapes still running after two hours.</p>
-    </article>
+  <section class="ops-summary-grid" aria-label="Daily action summary">
+    <article class="summary-card"><p class="summary-label">Tasks due or overdue</p><p class="summary-value">{{ daily.due_tasks|length }}</p><p class="summary-note">Open tasks due today or earlier.</p></article>
+    <article class="summary-card"><p class="summary-label">Contacts due</p><p class="summary-value">{{ daily.due_contact_total }}</p><p class="summary-note">Showing the top {{ daily.due_contacts|length }} by tier and last activity.</p></article>
+    <article class="summary-card"><p class="summary-label">LinkedIn opportunities</p><p class="summary-value">{{ daily.linkedin_opportunities|length }}</p><p class="summary-note">Explicitly not connected, with a LinkedIn profile.</p></article>
+    <article class="summary-card"><p class="summary-label">Items to resolve</p><p class="summary-value">{{ daily.missing_linkedin_status|length + daily.pending_linkedin_reviews + daily.pending_review_queue }}</p><p class="summary-note">Data gaps and pending review decisions.</p></article>
+  </section>
+
+  <section class="panel">
+    <div class="panel-header"><div><p class="eyebrow">Priority 1</p><h2>Tasks due or overdue</h2></div><a class="btn button-secondary" href="/ui/tasks">View all tasks</a></div>
+    {% if daily.due_tasks %}<div class="table-wrap"><table class="ops-table"><thead><tr><th>Due</th><th>Task</th><th>Contact / organisation</th><th>Priority</th><th>Action</th></tr></thead><tbody>{% for task in daily.due_tasks %}<tr><td>{{ task.due_date }}</td><td><div class="table-title">{{ task.task_type }}</div><div class="muted">{{ task.reason or "" }}</div></td><td>{% if task.contact_id %}<a href="/ui/contacts?contact_id={{ task.contact_id }}">{{ task.contact_name or "Contact" }}</a>{% endif %}{% if task.organisation_id %}<div class="muted"><a href="/ui/organisations/{{ task.organisation_id }}">{{ task.organisation_name }}</a></div>{% endif %}</td><td>{{ task.priority or "-" }}</td><td>{% if task.contact_id %}<a class="btn button-secondary" href="/ui/activities?contact_id={{ task.contact_id }}&organisation_id={{ task.organisation_id or '' }}">Log activity</a>{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="empty-state">No overdue or due tasks.</p>{% endif %}
+  </section>
+
+  <section class="panel">
+    <div class="panel-header"><div><p class="eyebrow">Priority 2</p><h2>Contacts due for follow-up</h2></div><span class="muted">Tier 1: 30 days · Tier 2: 60 days · Tier 3/Target: 90 days</span></div>
+    {% if daily.due_contacts %}<div class="table-wrap"><table class="ops-table"><thead><tr><th>Contact</th><th>Organisation</th><th>Tier</th><th>Last activity</th><th>Why now</th><th>Action</th></tr></thead><tbody>{% for contact in daily.due_contacts %}<tr><td><div class="table-title">{{ contact.contact_name }}</div><div class="muted">{{ contact.position_title or "" }}</div></td><td><a href="/ui/organisations/{{ contact.organisation_id }}">{{ contact.organisation_name }}</a></td><td>{{ contact.tier or "Target" }}</td><td>{{ contact.last_activity_date or "No logged activity" }}</td><td>{{ contact.recommended_action }}</td><td><a class="btn button-secondary" href="/ui/activities?contact_id={{ contact.contact_id }}&organisation_id={{ contact.organisation_id }}">Log activity</a>{% if contact.linkedin_profile_url %} <a class="btn button-secondary" href="{{ contact.linkedin_profile_url }}" target="_blank" rel="noopener">LinkedIn</a>{% endif %}</td></tr>{% endfor %}</tbody></table></div>{% else %}<p class="empty-state">No contacts are currently due under the configured cadence.</p>{% endif %}
   </section>
 
   <section class="two-col ops-panels">
-    <article class="panel">
-      <div class="panel-header">
-        <div>
-          <p class="eyebrow">SmartJobs</p>
-          <h2>Today's runs</h2>
-        </div>
-        <span class="muted">{{ smartjobs_runs|length }} shown for {{ today_date }}</span>
-      </div>
-      {% if smartjobs_runs %}
-      <div class="table-wrap">
-        <table class="ops-table">
-          <thead>
-            <tr>
-              <th>Source</th>
-              <th>Status</th>
-              <th>Seen</th>
-              <th>Matched</th>
-              <th>Review handoffs</th>
-              <th>Duration</th>
-              <th>Error</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for run in smartjobs_runs %}
-            <tr>
-              <td>
-                <div class="table-title">{{ run.source_name }}</div>
-                <div class="muted">Run #{{ run.id }}</div>
-              </td>
-              <td><span class="status-pill status-{{ run.status }}">{{ run.status }}</span></td>
-              <td>{{ run.jobs_seen if run.jobs_seen is not none else "-" }}</td>
-              <td>{{ run.jobs_matched if run.jobs_matched is not none else "-" }}</td>
-              <td>{{ run.review_items_created if run.review_items_created is not none else "-" }}</td>
-              <td>{% if run.duration_seconds is not none %}{{ run.duration_seconds }}s{% else %}-{% endif %}</td>
-              <td class="truncate" title="{{ run.error_message or '' }}">{{ run.error_message or "-" }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% else %}
-      <p class="empty-state">No SmartJobs runs found for {{ today_date }}. Trigger a SmartJobs workflow to populate this panel.</p>
-      {% endif %}
-    </article>
-
-    <article class="panel">
-      <div class="panel-header">
-        <div>
-          <p class="eyebrow">Review queue</p>
-          <h2>Recent review runs</h2>
-        </div>
-        <span class="muted">{{ review_queue_runs|length }} shown</span>
-      </div>
-      {% if review_queue_runs %}
-      <div class="table-wrap">
-        <table class="ops-table">
-          <thead>
-            <tr>
-              <th>Workflow</th>
-              <th>Status</th>
-              <th>Processed</th>
-              <th>Flagged</th>
-              <th>Duration</th>
-              <th>Error</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for run in review_queue_runs %}
-            <tr>
-              <td>
-                <div class="table-title">{{ run.workflow_name }}</div>
-                <div class="muted">{{ run.run_type or "review_queue" }}</div>
-              </td>
-              <td><span class="status-pill status-{{ run.status }}">{{ run.status }}</span></td>
-              <td>{{ run.records_processed if run.records_processed is not none else "-" }}</td>
-              <td>{{ run.records_flagged if run.records_flagged is not none else "-" }}</td>
-              <td>{% if run.duration_seconds is not none %}{{ run.duration_seconds }}s{% else %}-{% endif %}</td>
-              <td class="truncate" title="{{ run.error_summary or '' }}">{{ run.error_summary or "-" }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% else %}
-      <p class="empty-state">No Review Queue runs found.</p>
-      {% endif %}
-    </article>
+    <article class="panel"><div class="panel-header"><div><p class="eyebrow">Priority 3</p><h2>LinkedIn connection opportunities</h2></div></div>{% if daily.linkedin_opportunities %}<div class="simple-list">{% for contact in daily.linkedin_opportunities %}<div class="attention-card attention-medium"><div class="item-title">{{ contact.contact_name }} · {{ contact.organisation_name }}</div><div class="item-meta">{{ contact.position_title or "" }}</div><a class="btn button-secondary" href="{{ contact.linkedin_profile_url }}" target="_blank" rel="noopener">Open LinkedIn</a></div>{% endfor %}</div>{% else %}<p class="empty-state">No explicitly not-connected contacts with LinkedIn profiles.</p>{% endif %}</article>
+    <article class="panel"><div class="panel-header"><div><p class="eyebrow">Priority 4</p><h2>Data and review decisions</h2></div></div><div class="simple-list">{% for contact in daily.missing_linkedin_status %}<div class="attention-card attention-medium"><div class="item-title">{{ contact.contact_name }} · {{ contact.organisation_name }}</div><div class="item-meta">{{ contact.reason }}</div></div>{% endfor %}{% if daily.pending_linkedin_reviews %}<div class="attention-card attention-medium"><div class="item-title">{{ daily.pending_linkedin_reviews }} LinkedIn rows pending review</div><a class="btn button-secondary" href="/ui/linkedin/review">Open LinkedIn review</a></div>{% endif %}{% if daily.pending_review_queue %}<div class="attention-card attention-medium"><div class="item-title">{{ daily.pending_review_queue }} review-queue items pending</div><a class="btn button-secondary" href="/ui/review">Open review queue</a></div>{% endif %}{% if not daily.missing_linkedin_status and not daily.pending_linkedin_reviews and not daily.pending_review_queue %}<p class="empty-state">No data or review items need attention.</p>{% endif %}</div></article>
   </section>
 
   <section class="two-col ops-panels">
-    <article class="panel">
-      <div class="panel-header">
-        <div>
-          <p class="eyebrow">LinkedIn import</p>
-          <h2>Recent import runs</h2>
-        </div>
-        <span class="muted">{{ linkedin_import_runs|length }} shown</span>
-      </div>
-      {% if linkedin_import_runs %}
-      <div class="table-wrap">
-        <table class="ops-table">
-          <thead>
-            <tr>
-              <th>File</th>
-              <th>Status</th>
-              <th>Received</th>
-              <th>Processed</th>
-              <th>Flagged</th>
-              <th>Error</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for run in linkedin_import_runs %}
-            <tr>
-              <td>
-                <div class="table-title">{{ run.filename }}</div>
-                <div class="muted">{{ run.uploaded_by or "-" }}</div>
-              </td>
-              <td><span class="status-pill status-{{ run.status }}">{{ run.status }}</span></td>
-              <td>{{ run.rows_received if run.rows_received is not none else "-" }}</td>
-              <td>{{ run.rows_processed if run.rows_processed is not none else "-" }}</td>
-              <td>{{ run.rows_flagged if run.rows_flagged is not none else "-" }}</td>
-              <td class="truncate" title="{{ run.error_summary or '' }}">{{ run.error_summary or "-" }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% else %}
-      <p class="empty-state">No LinkedIn import runs found.</p>
-      {% endif %}
-    </article>
-
-    <article class="panel">
-      <div class="panel-header">
-        <div>
-          <p class="eyebrow">Operational attention</p>
-          <h2>What to check first</h2>
-        </div>
-        <span class="muted">{{ attention_items|length }} items</span>
-      </div>
-      {% if attention_items %}
-      <div class="simple-list">
-        {% for item in attention_items[:5] %}
-        <div class="attention-card attention-{{ item.severity }}">
-          <div class="item-title">{{ item.label }}</div>
-          <div class="item-meta">{{ item.severity|capitalize }} priority</div>
-        </div>
-        {% endfor %}
-      </div>
-      {% if attention_items|length > 5 %}
-      <details class="attention-details">
-        <summary>Show all {{ attention_items|length }} items</summary>
-        <div class="simple-list">
-          {% for item in attention_items[5:] %}
-          <div class="attention-card attention-{{ item.severity }}">
-            <div class="item-title">{{ item.label }}</div>
-            <div class="item-meta">{{ item.severity|capitalize }} priority</div>
-          </div>
-          {% endfor %}
-        </div>
-      </details>
-      {% endif %}
-      {% else %}
-      <p class="empty-state">No operational exceptions need attention.</p>
-      {% endif %}
-    </article>
+    <article class="panel"><div class="panel-header"><div><p class="eyebrow">Run health</p><h2>SmartJobs today</h2></div></div>{% if smartjobs_runs %}<div class="simple-list">{% for run in smartjobs_runs %}<div class="attention-card attention-{{ 'high' if run.status == 'failed' else 'medium' }}"><div class="item-title">{{ run.source_name }} · {{ run.status }}</div><div class="item-meta">Seen {{ run.jobs_seen or 0 }} · matched {{ run.jobs_matched or 0 }} · review handoffs {{ run.review_items_created or 0 }}</div></div>{% endfor %}</div>{% else %}<p class="empty-state">No SmartJobs run recorded today.</p>{% endif %}</article>
+    <article class="panel"><div class="panel-header"><div><p class="eyebrow">Run health</p><h2>Recent LinkedIn imports</h2></div><a class="btn button-secondary" href="/ui/linkedin/import">Import</a></div>{% if linkedin_import_runs %}<div class="simple-list">{% for run in linkedin_import_runs %}<div class="attention-card attention-medium"><div class="item-title">{{ run.filename }} · {{ run.status }}</div><div class="item-meta">Received {{ run.rows_received or 0 }} · processed {{ run.rows_processed or 0 }} · flagged {{ run.rows_flagged or 0 }}</div></div>{% endfor %}</div>{% else %}<p class="empty-state">No LinkedIn import runs found.</p>{% endif %}</article>
   </section>
 </section>
 {% endblock %}

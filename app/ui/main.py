@@ -11,6 +11,8 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.db import crud
+from app.schemas.activities import ActivityCreate
+from app.schemas.contacts import ContactCreate
 from app.db.session import SessionLocal
 from app.services.entity_resolution import process_staged_linkedin_row
 from app.services.linkedin_imports import create_import_run, parse_connections_csv, stage_connections
@@ -60,25 +62,22 @@ def render_page(
 
 @app.get("/", response_class=HTMLResponse)
 def ui_home(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
-    summary = crud.get_ops_dashboard_summary(db)
     today = datetime.now(BRISBANE_TZ).date()
+    daily = crud.get_daily_bd_actions(db=db, today=today, contact_limit=25)
     smartjobs_runs = crud.list_smartjobs_runs_for_day(db, day=today)
-    review_queue_runs = crud.list_review_queue_runs(db, limit=8)
-    linkedin_import_runs = crud.list_linkedin_import_runs_ui(db, limit=8)
-    attention_items = crud.list_ops_attention_items(db)
+    linkedin_import_runs = crud.list_linkedin_import_runs_ui(db, limit=3)
+
     return render_page(
         request,
         "ops_home.html",
-        page_title="BD Ops Dashboard",
+        page_title="Daily BD Actions",
         heading="",
         description="",
         active_page="ops",
-        summary=summary,
+        daily=daily,
         smartjobs_runs=smartjobs_runs,
-        review_queue_runs=review_queue_runs,
         linkedin_import_runs=linkedin_import_runs,
-        attention_items=attention_items,
-        today_date=today.strftime("%Y-%m-%d"),
+        today_date=today.strftime("%d %b %Y"),
     )
 
 
@@ -153,6 +152,48 @@ def contacts_page(
     )
 
 
+@app.post("/contacts")
+def create_contact_from_form(
+    organisation_id: int = Form(...),
+    first_name: str | None = Form(default=None),
+    last_name: str | None = Form(default=None),
+    full_name: str = Form(...),
+    position_title: str | None = Form(default=None),
+    department: str | None = Form(default=None),
+    email: str | None = Form(default=None),
+    linkedin_profile_url: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    clean_full_name = full_name.strip()
+    name_parts = clean_full_name.split(maxsplit=1)
+
+    clean_first_name = (first_name or "").strip() or name_parts[0]
+    clean_last_name = (last_name or "").strip()
+    if not clean_last_name and len(name_parts) > 1:
+        clean_last_name = name_parts[1]
+
+    payload = ContactCreate(
+        organisation_id=organisation_id,
+        first_name=clean_first_name,
+        last_name=clean_last_name,
+        full_name=clean_full_name,
+        position_title=position_title.strip() if position_title else None,
+        department=department.strip() if department else None,
+        email=email.strip() if email else None,
+        linkedin_profile_url=(
+            linkedin_profile_url.strip()
+            if linkedin_profile_url
+            else None
+        ),
+    )
+
+    crud.create_contact(db, payload)
+    return RedirectResponse(
+        url=f"/ui/contacts?organisation_id={organisation_id}",
+        status_code=303,
+    )
+
+
 @app.get("/projects", response_class=HTMLResponse)
 def projects_page(
     request: Request,
@@ -196,6 +237,35 @@ def activities_page(
         selected_project_id=project_id,
         default_activity_date=datetime.now().strftime("%Y-%m-%dT%H:%M"),
     )
+
+
+@app.post("/activities")
+def create_activity_from_form(
+    organisation_id: str | None = Form(default=None),
+    contact_id: str | None = Form(default=None),
+    project_id: str | None = Form(default=None),
+    activity_type: str = Form(...),
+    activity_date: str = Form(...),
+    outcome: str | None = Form(default=None),
+    logged_by: str | None = Form(default=None),
+    notes: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    def optional_id(value: str | None) -> int | None:
+        return int(value) if value else None
+
+    payload = ActivityCreate(
+        organisation_id=optional_id(organisation_id),
+        contact_id=optional_id(contact_id),
+        project_id=optional_id(project_id),
+        activity_type=activity_type.strip(),
+        activity_date=activity_date,
+        outcome=outcome.strip() if outcome else None,
+        logged_by=logged_by.strip() if logged_by else None,
+        notes=notes.strip() if notes else None,
+    )
+    crud.create_activity(db, payload)
+    return RedirectResponse(url="/ui/activities", status_code=303)
 
 
 @app.get("/tasks", response_class=HTMLResponse)
