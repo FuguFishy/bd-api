@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="card">
+  <form method="get" action="/ui/reports" class="form-grid">
+    <label>
+      Period
+      <select name="period">
+        {% for value, label in report_periods.items() %}
+        <option value="{{ value }}" {% if selected_period == value %}selected{% endif %}>
+          {{ label }}
+        </option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <label>
+      As at
+      <input type="date" name="as_at" value="{{ as_at_date }}" />
+    </label>
+
+    <div class="form-actions">
+      <button type="submit" class="button button-primary">Apply</button>
+    </div>
+  </form>
+
+  <p class="muted">
+    Reporting period: {{ period_label }}. Activity is measured by activity date in Brisbane time.
+  </p>
+</section>
+
+<section class="stats-grid">
+  <article class="stat-card">
+    <p class="stat-label">Activities</p>
+    <p class="stat-value">{{ total_activities }}</p>
+    <p class="muted">{{ period_label }}</p>
+  </article>
+
+  <article class="stat-card">
+    <p class="stat-label">Organisations needing attention</p>
+    <p class="stat-value">{{ organisations_needing_attention | length }}</p>
+    <p class="muted">Tier-specific cadence overdue</p>
+  </article>
+</section>
+
+<section class="card">
+  <div class="section-heading">
+    <div>
+      <h3>Activity by organisation</h3>
+      <p class="muted">Activities recorded in the selected reporting period.</p>
+    </div>
+  </div>
+
+  {% if activity_by_organisation %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Organisation</th>
+          <th class="number">Activities</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in activity_by_organisation %}
+        <tr>
+          <td>{{ row.organisation_name }}</td>
+          <td class="number">{{ row.activity_count }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">No activities were recorded in this period.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="section-heading">
+    <div>
+      <h3>Activity by type</h3>
+      <p class="muted">Distribution of recorded activity types.</p>
+    </div>
+  </div>
+
+  {% if activity_by_type %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Activity type</th>
+          <th class="number">Activities</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in activity_by_type %}
+        <tr>
+          <td>{{ row.activity_type }}</td>
+          <td class="number">{{ row.activity_count }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">No activity types are available for this period.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="section-heading">
+    <div>
+      <h3>Activity by contact</h3>
+      <p class="muted">Grouped by organisation for the selected reporting period.</p>
+    </div>
+  </div>
+
+  {% if activity_by_contact %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Organisation</th>
+          <th>Contact</th>
+          <th class="number">Activities</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in activity_by_contact %}
+        <tr>
+          <td>{{ row.organisation_name }}</td>
+          <td>{{ row.contact_name }}</td>
+          <td class="number">{{ row.activity_count }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">No contact activity was recorded in this period.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="section-heading">
+    <div>
+      <h3>LinkedIn connections by organisation</h3>
+      <p class="muted">
+        Connected: connected or yes. Not connected: not connected, not_connected, or no.
+        Blank and unrecognised values remain unknown.
+      </p>
+    </div>
+  </div>
+
+  {% if linkedin_by_organisation %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Organisation</th>
+          <th class="number">Connected</th>
+          <th class="number">Not connected</th>
+          <th class="number">Unknown</th>
+          <th class="number">Total contacts</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in linkedin_by_organisation %}
+        <tr>
+          <td>{{ row.organisation_name }}</td>
+          <td class="number">{{ row.connected_count }}</td>
+          <td class="number">{{ row.not_connected_count }}</td>
+          <td class="number">{{ row.unknown_count }}</td>
+          <td class="number">{{ row.total_contacts }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">No organisation contacts are available for LinkedIn reporting.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="section-heading">
+    <div>
+      <h3>Organisations needing attention</h3>
+      <p class="muted">
+        Active organisations overdue against the current tier-specific contact cadence.
+      </p>
+    </div>
+  </div>
+
+  {% if organisations_needing_attention %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Organisation</th>
+          <th>Tier</th>
+          <th>Status</th>
+          <th>Last contact</th>
+          <th>Last activity</th>
+          <th>Last touch</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in organisations_needing_attention %}
+        <tr>
+          <td>
+            <a href="/ui/organisations/{{ row.organisation_id }}">
+              {{ row.organisation_name }}
+            </a>
+          </td>
+          <td>{{ row.tier or "—" }}</td>
+          <td>{{ row.account_status or "—" }}</td>
+          <td>{{ row.last_contact_date.strftime('%d %b %Y') if row.last_contact_date else "Never" }}</td>
+          <td>{{ row.last_activity_date.strftime('%d %b %Y') if row.last_activity_date else "Never" }}</td>
+          <td>{{ row.last_touch_date.strftime('%d %b %Y') if row.last_touch_date else "Never" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="empty-state">All active organisations have been touched in the previous 90 days.</p>
+  {% endif %}
+</section>
+{% endblock %}

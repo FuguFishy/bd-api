@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Generator
 from zoneinfo import ZoneInfo
@@ -50,6 +50,58 @@ def optional_date(value: str | None) -> date | None:
     return date.fromisoformat(value) if value else None
 
 
+
+
+REPORT_PERIODS = {
+    "week": "Week",
+    "month": "Month",
+    "quarter": "Quarter",
+    "financial_ytd": "Financial YTD",
+    "financial_year": "Financial Year",
+}
+
+
+def start_of_financial_year(value: date) -> date:
+    return date(value.year if value.month >= 7 else value.year - 1, 7, 1)
+
+
+def report_period_range(period: str, as_at: date) -> tuple[date, date, str]:
+    if period == "week":
+        start = as_at - timedelta(days=as_at.weekday())
+        return start, start + timedelta(days=7), f"Week beginning {start:%d %b %Y}"
+
+    if period == "month":
+        start = as_at.replace(day=1)
+        end = (
+            date(start.year + 1, 1, 1)
+            if start.month == 12
+            else date(start.year, start.month + 1, 1)
+        )
+        return start, end, start.strftime("%B %Y")
+
+    if period == "quarter":
+        quarter_start_month = ((as_at.month - 1) // 3) * 3 + 1
+        start = date(as_at.year, quarter_start_month, 1)
+        end = (
+            date(as_at.year + 1, 1, 1)
+            if quarter_start_month == 10
+            else date(as_at.year, quarter_start_month + 3, 1)
+        )
+        quarter = ((as_at.month - 1) // 3) + 1
+        return start, end, f"Q{quarter} {as_at.year}"
+
+    financial_year_start = start_of_financial_year(as_at)
+    financial_year_end = date(financial_year_start.year + 1, 7, 1)
+    financial_year_label = f"FY{financial_year_end.year}"
+
+    if period == "financial_year":
+        return financial_year_start, financial_year_end, financial_year_label
+
+    return (
+        financial_year_start,
+        as_at + timedelta(days=1),
+        f"{financial_year_label} to {as_at:%d %b %Y}",
+    )
 
 def render_page(
     request: Request,
@@ -105,6 +157,62 @@ def crm_home(request: Request) -> HTMLResponse:
         description="Manual entry and browsing for organisations, contacts, projects, and notes.",
         active_page="crm",
     )
+
+
+
+@app.get("/reports", response_class=HTMLResponse)
+def reports_page(
+    request: Request,
+    period: str = "financial_ytd",
+    as_at: str | None = None,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    if period not in REPORT_PERIODS:
+        period = "financial_ytd"
+
+    try:
+        as_at_date = (
+            date.fromisoformat(as_at)
+            if as_at
+            else datetime.now(BRISBANE_TZ).date()
+        )
+    except ValueError:
+        as_at_date = datetime.now(BRISBANE_TZ).date()
+
+    period_start, period_end, period_label = report_period_range(period, as_at_date)
+    activity_by_organisation = crud.get_reports_activity_by_organisation(
+        db, period_start, period_end
+    )
+    activity_by_type = crud.get_reports_activity_by_type(
+        db, period_start, period_end
+    )
+    activity_by_contact = crud.get_reports_activity_by_contact(
+        db, period_start, period_end
+    )
+    linkedin_by_organisation = crud.get_reports_linkedin_connections_by_organisation(db)
+    organisations_needing_attention = crud.get_reports_organisations_needing_attention(
+        db, as_at_date
+    )
+
+    return render_page(
+        request,
+        "reports.html",
+        page_title="Reports",
+        heading="Reports",
+        description="Activity, relationship coverage, and account attention indicators.",
+        active_page="reports",
+        report_periods=REPORT_PERIODS,
+        selected_period=period,
+        as_at_date=as_at_date.isoformat(),
+        period_label=period_label,
+        total_activities=sum(row["activity_count"] for row in activity_by_organisation),
+        activity_by_organisation=activity_by_organisation,
+        activity_by_type=activity_by_type,
+        activity_by_contact=activity_by_contact,
+        linkedin_by_organisation=linkedin_by_organisation,
+        organisations_needing_attention=organisations_needing_attention,
+    )
+
 
 
 @app.get("/organisations", response_class=HTMLResponse)

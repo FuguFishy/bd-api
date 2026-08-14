@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -1311,3 +1311,177 @@ def get_daily_bd_actions(db: Session, today: datetime.date, contact_limit: int =
         "pending_linkedin_reviews": pending_linkedin_reviews,
         "pending_review_queue": pending_review_queue,
     }
+# -------------------------------------------------------------------
+# Reports
+# -------------------------------------------------------------------
+
+def get_reports_activity_by_organisation(
+    db: Session,
+    period_start: date,
+    period_end: date,
+) -> list[dict[str, Any]]:
+    rows = db.execute(
+        text(
+            """
+            select
+                coalesce(o.name, 'Unassigned organisation') as organisation_name,
+                count(a.id) as activity_count
+            from public.activities a
+            left join public.organisations o on o.id = a.organisation_id
+            where (a.activity_date at time zone 'Australia/Brisbane')::date >= :period_start
+              and (a.activity_date at time zone 'Australia/Brisbane')::date < :period_end
+            group by coalesce(o.name, 'Unassigned organisation')
+            order by activity_count desc, organisation_name asc
+            """
+        ),
+        {"period_start": period_start, "period_end": period_end},
+    ).mappings().all()
+    return [dict(row) for row in rows]
+
+
+def get_reports_activity_by_type(
+    db: Session,
+    period_start: date,
+    period_end: date,
+) -> list[dict[str, Any]]:
+    rows = db.execute(
+        text(
+            """
+            select
+                coalesce(nullif(trim(a.activity_type), ''), 'Unspecified') as activity_type,
+                count(a.id) as activity_count
+            from public.activities a
+            where (a.activity_date at time zone 'Australia/Brisbane')::date >= :period_start
+              and (a.activity_date at time zone 'Australia/Brisbane')::date < :period_end
+            group by coalesce(nullif(trim(a.activity_type), ''), 'Unspecified')
+            order by activity_count desc, activity_type asc
+            """
+        ),
+        {"period_start": period_start, "period_end": period_end},
+    ).mappings().all()
+    return [dict(row) for row in rows]
+
+
+def get_reports_activity_by_contact(
+    db: Session,
+    period_start: date,
+    period_end: date,
+) -> list[dict[str, Any]]:
+    rows = db.execute(
+        text(
+            """
+            select
+                coalesce(o.name, 'Unassigned organisation') as organisation_name,
+                coalesce(
+                    nullif(trim(c.full_name), ''),
+                    nullif(trim(concat_ws(' ', c.first_name, c.last_name)), ''),
+                    'Unassigned contact'
+                ) as contact_name,
+                count(a.id) as activity_count
+            from public.activities a
+            left join public.contacts c on c.id = a.contact_id
+            left join public.organisations o on o.id = coalesce(a.organisation_id, c.organisation_id)
+            where (a.activity_date at time zone 'Australia/Brisbane')::date >= :period_start
+              and (a.activity_date at time zone 'Australia/Brisbane')::date < :period_end
+            group by
+                coalesce(o.name, 'Unassigned organisation'),
+                coalesce(
+                    nullif(trim(c.full_name), ''),
+                    nullif(trim(concat_ws(' ', c.first_name, c.last_name)), ''),
+                    'Unassigned contact'
+                )
+            order by organisation_name asc, activity_count desc, contact_name asc
+            """
+        ),
+        {"period_start": period_start, "period_end": period_end},
+    ).mappings().all()
+    return [dict(row) for row in rows]
+
+
+def get_reports_linkedin_connections_by_organisation(
+    db: Session,
+) -> list[dict[str, Any]]:
+    rows = db.execute(
+        text(
+            """
+            select
+                o.name as organisation_name,
+                count(c.id) as total_contacts,
+                count(c.id) filter (
+                    where lower(trim(coalesce(c.linkedin_connection_status, '')))
+                    in ('connected', 'yes')
+                ) as connected_count,
+                count(c.id) filter (
+                    where lower(trim(coalesce(c.linkedin_connection_status, '')))
+                    in ('not connected', 'not_connected', 'no')
+                ) as not_connected_count,
+                count(c.id) filter (
+                    where lower(trim(coalesce(c.linkedin_connection_status, '')))
+                    not in ('connected', 'yes', 'not connected', 'not_connected', 'no')
+                ) as unknown_count
+            from public.organisations o
+            join public.contacts c on c.organisation_id = o.id
+            where o.is_archived = false
+            group by o.id, o.name
+            order by connected_count desc, total_contacts desc, o.name asc
+            """
+        )
+    ).mappings().all()
+    return [dict(row) for row in rows]
+
+
+def get_reports_organisations_needing_attention(
+    db: Session,
+    as_at_date: date,
+) -> list[dict[str, Any]]:
+    rows = db.execute(
+        text(
+            """
+            with organisation_activity_dates as (
+                select
+                    coalesce(a.organisation_id, c.organisation_id) as organisation_id,
+                    max((a.activity_date at time zone 'Australia/Brisbane')::date) as last_activity_date
+                from public.activities a
+                left join public.contacts c on c.id = a.contact_id
+                where coalesce(a.organisation_id, c.organisation_id) is not null
+                group by coalesce(a.organisation_id, c.organisation_id)
+            ),
+            organisation_last_touch as (
+                select
+                    o.id as organisation_id,
+                    case
+                        when o.last_contact_date is null then ad.last_activity_date
+                        when ad.last_activity_date is null then o.last_contact_date
+                        else greatest(o.last_contact_date, ad.last_activity_date)
+                    end as last_touch_date,
+                    ad.last_activity_date
+                from public.organisations o
+                left join organisation_activity_dates ad on ad.organisation_id = o.id
+            )
+            select
+                o.id as organisation_id,
+                o.name as organisation_name,
+                o.tier,
+                o.account_status,
+                o.last_contact_date,
+                olt.last_activity_date,
+                olt.last_touch_date
+            from public.organisations o
+            join organisation_last_touch olt on olt.organisation_id = o.id
+            where o.is_archived = false
+              and (
+                    olt.last_touch_date is null
+                    or olt.last_touch_date <= :as_at_date - (
+                        case
+                            when o.tier = 'Tier 1' then 30
+                            when o.tier = 'Tier 2' then 60
+                            else 90
+                        end
+                    )
+              )
+            order by olt.last_touch_date asc nulls first, o.name asc
+            """
+        ),
+        {"as_at_date": as_at_date},
+    ).mappings().all()
+    return [dict(row) for row in rows]
