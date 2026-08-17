@@ -49,12 +49,17 @@
 
           <div class="form-row">
             <label for="project_id">Project</label>
-            <select id="project_id" name="project_id">
+            <select
+              id="project_id"
+              name="project_id"
+              data-selected-project-id="{{ selected_project_id or '' }}"
+              disabled
+            >
               <option value="">Select project</option>
               {% for project in projects %}
                 <option
                   value="{{ project.id }}"
-                  {% if selected_project_id == project.id %}selected{% endif %}
+                  data-organisation-id="{{ project.organisation_id or '' }}"
                 >
                   {{ project.name }}
                 </option>
@@ -153,10 +158,13 @@
 (function () {
   const org = document.getElementById("organisation_id");
   const contact = document.getElementById("contact_id");
-  if (!org || !contact) return;
+  const project = document.getElementById("project_id");
+  if (!org || !contact || !project) return;
 
-  const selected = contact.dataset.selectedContactId || "";
+  const selectedContact = contact.dataset.selectedContactId || "";
+  const selectedProject = project.dataset.selectedProjectId || "";
   const contacts = [...contact.querySelectorAll("option[data-organisation-id]")];
+  const projects = [...project.querySelectorAll("option[data-organisation-id]")];
 
   function render(preferred) {
     const orgId = org.value;
@@ -195,8 +203,50 @@
     contact.disabled = false;
   }
 
-  org.addEventListener("change", () => render(""));
-  render(selected);
+  function renderProjects(preferred) {
+    const orgId = org.value;
+    const matching = projects.filter(
+      (option) => option.dataset.organisationId === orgId
+    );
+
+    project.replaceChildren();
+
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+
+    if (!orgId) {
+      placeholder.textContent = "Select organisation first";
+      project.appendChild(placeholder);
+      project.disabled = true;
+      return;
+    }
+
+    if (!matching.length) {
+      placeholder.textContent = "No projects for this organisation";
+      project.appendChild(placeholder);
+      project.disabled = true;
+      return;
+    }
+
+    placeholder.textContent = "Select project";
+    project.appendChild(placeholder);
+
+    matching.forEach((option) => {
+      const item = option.cloneNode(true);
+      item.selected = item.value === preferred;
+      project.appendChild(item);
+    });
+
+    project.disabled = false;
+  }
+
+  org.addEventListener("change", () => {
+    render("");
+    renderProjects("");
+  });
+
+  render(selectedContact);
+  renderProjects(selectedProject);
 })();
 </script>
 {% endblock %}
