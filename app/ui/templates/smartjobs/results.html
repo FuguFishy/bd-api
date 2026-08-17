@@ -73,5 +73,116 @@
     <p class="empty-state">No SmartJobs review items are available yet.</p>
     {% endif %}
   </div>
+
+  <div class="card">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Scrape audit</p>
+        <h2>All scraped jobs</h2>
+        <p class="muted">
+          Every job processed by the scraper, including matched, below-threshold,
+          unclassified, and detail-page scrape-error results. Showing up to 200 rows.
+        </p>
+      </div>
+    </div>
+
+    <form method="get" action="/ui/smartjobs" class="filter-bar">
+      <label>
+        Status
+        <select name="status">
+          <option value="" {% if not audit_status %}selected{% endif %}>All statuses</option>
+          <option value="matched" {% if audit_status == "matched" %}selected{% endif %}>Matched</option>
+          <option value="below_threshold" {% if audit_status == "below_threshold" %}selected{% endif %}>Below threshold</option>
+          <option value="no_organisation" {% if audit_status == "no_organisation" %}selected{% endif %}>No organisation</option>
+          <option value="scrape_error" {% if audit_status == "scrape_error" %}selected{% endif %}>Scrape error</option>
+        </select>
+      </label>
+
+      <label>
+        Search
+        <input
+          type="search"
+          name="q"
+          value="{{ audit_query }}"
+          placeholder="Job, organisation, target, or category"
+        >
+      </label>
+
+      <div class="filter-actions">
+        <button class="btn btn-primary" type="submit">Filter</button>
+        {% if audit_status or audit_query %}
+        <a class="btn button-secondary" href="/ui/smartjobs">Clear</a>
+        {% endif %}
+      </div>
+    </form>
+
+    {% if audit_error %}
+    <p class="empty-state">{{ audit_error }}</p>
+    {% elif audit_rows %}
+    <div class="table-wrap">
+      <table class="ops-table">
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Job</th>
+            <th>Advertised organisation</th>
+            <th>Closest target</th>
+            <th>Score</th>
+            <th>Category</th>
+            <th>Close date</th>
+            <th>Contact</th>
+            <th>Scraped</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in audit_rows %}
+          <tr>
+            <td>
+              <span class="status-pill status-{{ row.match_status }}">
+                {{ row.match_status.replace("_", " ") }}
+              </span>
+            </td>
+            <td>
+              {% if row.job_url %}
+              <a href="{{ row.job_url }}" target="_blank" rel="noopener noreferrer">
+                {{ row.job_title or "Open job" }}
+              </a>
+              {% else %}
+              {{ row.job_title or "-" }}
+              {% endif %}
+            </td>
+            <td>{{ row.organisation or "-" }}</td>
+            <td>{{ row.matched_client or "-" }}</td>
+            <td>{{ row.match_score or "-" }}</td>
+            <td>{{ row.occupational_group or "-" }}</td>
+            <td>{{ row.close_date or "-" }}</td>
+            <td>
+              {% if row.contact_name %}
+              {{ row.contact_name }}
+              {% endif %}
+              {% if row.contact_phone or row.contact_email %}
+              <div class="muted">
+                {{ row.contact_phone or row.contact_email }}
+              </div>
+              {% elif not row.contact_name %}
+              -
+              {% endif %}
+            </td>
+            <td>{{ row.date_scraped or "-" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% elif audit_file_exists %}
+    <p class="empty-state">
+      The SmartJobs audit file exists but has no rows matching the current filter.
+    </p>
+    {% else %}
+    <p class="empty-state">
+      No all-jobs audit file exists yet. It will appear after the next SmartJobs scrape completes.
+    </p>
+    {% endif %}
+  </div>
 </section>
 {% endblock %}

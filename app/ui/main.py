@@ -1,3 +1,5 @@
+import csv
+import os
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Generator
@@ -803,8 +805,98 @@ async def linkedin_review_skip(
     return RedirectResponse(url="/ui/linkedin/review", status_code=303)
 
 
+SMARTJOBS_AUDIT_FILE = Path(
+    os.getenv(
+        "SMARTJOBS_ALL_RESULTS_FILE",
+        "/home/ubuntu/smartjobs/data/smartjobs_all_results.csv",
+    )
+)
+SMARTJOBS_AUDIT_COLUMNS = [
+    "job_title",
+    "organisation",
+    "matched_client",
+    "match_score",
+    "match_status",
+    "contact_name",
+    "contact_phone",
+    "contact_email",
+    "close_date",
+    "job_url",
+    "occupational_group",
+    "date_scraped",
+]
+
+
+def load_smartjobs_audit_rows(
+    status: str = "",
+    query: str = "",
+    limit: int = 200,
+) -> tuple[list[dict[str, str]], str]:
+    if not SMARTJOBS_AUDIT_FILE.exists():
+        return [], ""
+
+    try:
+        with SMARTJOBS_AUDIT_FILE.open(
+            encoding="utf-8-sig",
+            newline="",
+        ) as audit_file:
+            reader = csv.DictReader(audit_file)
+            if not reader.fieldnames:
+                return [], "The SmartJobs audit file has no header row."
+
+            rows = []
+            status = status.strip().lower()
+            query = query.strip().lower()
+
+            for raw_row in reader:
+                row = {
+                    column: (raw_row.get(column) or "").strip()
+                    for column in SMARTJOBS_AUDIT_COLUMNS
+                }
+
+                if status and row["match_status"].lower() != status:
+                    continue
+
+                if query:
+                    searchable = " ".join(
+                        row[column].lower()
+                        for column in (
+                            "job_title",
+                            "organisation",
+                            "matched_client",
+                            "occupational_group",
+                            "match_status",
+                        )
+                    )
+                    if query not in searchable:
+                        continue
+
+                rows.append(row)
+
+            rows.sort(
+                key=lambda row: (
+                    row["date_scraped"],
+                    row["close_date"],
+                    row["job_title"],
+                ),
+                reverse=True,
+            )
+            return rows[:limit], ""
+    except (OSError, csv.Error) as exc:
+        return [], f"Could not read the SmartJobs audit file: {exc}"
+
+
 @app.get("/smartjobs", response_class=HTMLResponse)
-def smartjobs_results_page(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
+def smartjobs_results_page(
+    request: Request,
+    status: str = "",
+    q: str = "",
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    audit_rows, audit_error = load_smartjobs_audit_rows(
+        status=status,
+        query=q,
+    )
     scrape_runs = db.execute(
         text(
             """
@@ -839,6 +931,11 @@ def smartjobs_results_page(request: Request, db: Session = Depends(get_db)) -> H
         active_page="smartjobs_results",
         scrape_runs=scrape_runs,
         review_items=review_items,
+        audit_rows=audit_rows,
+        audit_error=audit_error,
+        audit_status=status.strip().lower(),
+        audit_query=q.strip(),
+        audit_file_exists=SMARTJOBS_AUDIT_FILE.exists(),
     )
 
 

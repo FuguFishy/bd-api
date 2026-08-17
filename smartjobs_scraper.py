@@ -25,6 +25,7 @@ DATA_DIR = Path(os.getenv("SMARTJOBS_DATA_DIR", str(APP_DIR / "data")))
 CLIENTS_FILE = Path(os.getenv("CLIENTS_FILE", str(DATA_DIR / "QLDGovt_Target_List.csv")))
 CATEGORIES_FILE = Path(os.getenv("CATEGORIES_FILE", str(DATA_DIR / "Category_List.csv")))
 OUTPUT_FILE = Path(os.getenv("OUTPUT_FILE", str(DATA_DIR / "smartjobs_leads.csv")))
+ALL_RESULTS_FILE = Path(os.getenv("ALL_RESULTS_FILE", str(DATA_DIR / "smartjobs_all_results.csv")))
 LOG_FILE = Path(os.getenv("LOG_FILE", str(DATA_DIR / "smartjobs_scraper.log")))
 
 WEBHOOK_URL = os.getenv("WEBHOOK_URL", "").strip()
@@ -36,6 +37,21 @@ OUTPUT_COLUMNS = [
     "organisation",
     "matched_client",
     "match_score",
+    "contact_name",
+    "contact_phone",
+    "contact_email",
+    "close_date",
+    "job_url",
+    "occupational_group",
+    "date_scraped",
+]
+
+ALL_RESULTS_COLUMNS = [
+    "job_title",
+    "organisation",
+    "matched_client",
+    "match_score",
+    "match_status",
     "contact_name",
     "contact_phone",
     "contact_email",
@@ -290,6 +306,54 @@ def load_existing():
     return pd.DataFrame(columns=OUTPUT_COLUMNS)
 
 
+def audit_key(df):
+    return (
+        df["job_url"].fillna("").str.lower()
+        + "|"
+        + df["occupational_group"].fillna("").str.lower()
+    )
+
+
+def load_existing_all_results():
+    if ALL_RESULTS_FILE.exists():
+        try:
+            df = pd.read_csv(ALL_RESULTS_FILE, dtype=str).fillna("")
+            for column in ALL_RESULTS_COLUMNS:
+                if column not in df.columns:
+                    df[column] = ""
+            df = df[ALL_RESULTS_COLUMNS]
+            log.info(f"Existing audit records: {len(df)}")
+            return df
+        except Exception as exc:
+            log.warning(f"Could not load audit results: {exc}")
+    return pd.DataFrame(columns=ALL_RESULTS_COLUMNS)
+
+
+def save_all_results_checkpoint(existing, new_rows):
+    if not new_rows:
+        out = existing if not existing.empty else pd.DataFrame(columns=ALL_RESULTS_COLUMNS)
+    else:
+        new_df = pd.DataFrame(new_rows)[ALL_RESULTS_COLUMNS].fillna("")
+        if existing.empty:
+            out = new_df
+        else:
+            current = existing.copy()
+            current["_key"] = audit_key(current)
+            new_df["_key"] = audit_key(new_df)
+            kept = current[~current["_key"].isin(new_df["_key"])].drop(columns=["_key"])
+            out = pd.concat([kept, new_df.drop(columns=["_key"])], ignore_index=True)
+
+        out = out.sort_values(
+            ["date_scraped", "close_date", "organisation"],
+            ascending=[False, True, True],
+            na_position="last",
+        )
+
+    out.to_csv(ALL_RESULTS_FILE, index=False, encoding="utf-8-sig")
+    log.info(f"Saved {len(out)} audit records to {ALL_RESULTS_FILE}")
+    return out
+
+
 def save_checkpoint(existing, new_rows):
     if not new_rows:
         out = existing if not existing.empty else pd.DataFrame(columns=OUTPUT_COLUMNS)
@@ -341,6 +405,7 @@ def post_to_webhook(row):
 async def run_scraper(categories, clients):
     today = datetime.now().strftime("%Y-%m-%d")
     existing_df = load_existing()
+    existing_all_results_df = load_existing_all_results()
     all_matched = []
 
     async with async_playwright() as pw:
@@ -356,6 +421,7 @@ async def run_scraper(categories, clients):
         for group in categories:
             log.info(f'=== "{group}" ===')
             group_matched = []
+            group_all_results = []
 
             job_urls = await get_job_urls_for_group(search_page, group)
             log.info(f'URLs found: {len(job_urls)}')
@@ -365,9 +431,24 @@ async def run_scraper(categories, clients):
                 await asyncio.sleep(1.5)
                 job = await scrape_job_detail(detail_page, url)
                 if not job:
+                    group_all_results.append({
+                        "job_title": "",
+                        "organisation": "",
+                        "matched_client": "",
+                        "match_score": "",
+                        "match_status": "scrape_error",
+                        "contact_name": "",
+                        "contact_phone": "",
+                        "contact_email": "",
+                        "close_date": "",
+                        "job_url": url,
+                        "occupational_group": group,
+                        "date_scraped": today,
+                    })
                     continue
 
-                best_match, best_client, best_score = False, "", 0
+                best_client = ""
+                best_score = 0
                 candidates = job.get("subtitle_parts", [])
                 if job["organisation"] and job["organisation"] not in candidates:
                     candidates = [job["organisation"]] + candidates
@@ -375,25 +456,36 @@ async def run_scraper(categories, clients):
                 for candidate in candidates:
                     if not candidate:
                         continue
-                    is_m, client, score = fuzzy_match(candidate, clients)
-                    if is_m and score > best_score:
-                        best_match, best_client, best_score = is_m, client, score
+                    _, client, score = fuzzy_match(candidate, clients)
+                    if score > best_score:
+                        best_client, best_score = client, score
+
+                best_match = best_score >= FUZZY_THRESHOLD
+                if best_match:
+                    match_status = "matched"
+                elif job["organisation"] or candidates:
+                    match_status = "below_threshold"
+                else:
+                    match_status = "no_organisation"
+
+                audit_row = {
+                    "job_title": job["job_title"],
+                    "organisation": job["organisation"],
+                    "matched_client": best_client,
+                    "match_score": str(round(best_score, 1)) if best_client else "",
+                    "match_status": match_status,
+                    "contact_name": job["contact_name"],
+                    "contact_phone": job["contact_phone"],
+                    "contact_email": job["contact_email"],
+                    "close_date": job["close_date"],
+                    "job_url": job["job_url"],
+                    "occupational_group": group,
+                    "date_scraped": today,
+                }
+                group_all_results.append(audit_row)
 
                 if best_match:
-                    row = {col: "" for col in OUTPUT_COLUMNS}
-                    row.update({
-                        "job_title": job["job_title"],
-                        "organisation": job["organisation"],
-                        "matched_client": best_client,
-                        "match_score": str(round(best_score, 1)),
-                        "contact_name": job["contact_name"],
-                        "contact_phone": job["contact_phone"],
-                        "contact_email": job["contact_email"],
-                        "close_date": job["close_date"],
-                        "job_url": job["job_url"],
-                        "occupational_group": group,
-                        "date_scraped": today,
-                    })
+                    row = {column: audit_row[column] for column in OUTPUT_COLUMNS}
                     group_matched.append(row)
 
                     if WEBHOOK_ENABLED and WEBHOOK_URL:
@@ -405,7 +497,14 @@ async def run_scraper(categories, clients):
 
             all_matched.extend(group_matched)
             existing_df = save_checkpoint(existing_df, group_matched)
-            log.info(f'Done group "{group}" - {len(group_matched)} matches')
+            existing_all_results_df = save_all_results_checkpoint(
+                existing_all_results_df,
+                group_all_results,
+            )
+            log.info(
+                f'Done group "{group}" - {len(group_matched)} matches, '
+                f'{len(group_all_results)} audit rows'
+            )
 
         await browser.close()
 
