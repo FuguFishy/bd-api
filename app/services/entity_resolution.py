@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
 from app.db import models
 from app.services.linkedin_imports import normalize_text
@@ -91,6 +92,56 @@ def find_contact_candidates(db: Session, full_name_normalized: str, organisation
 
 
 def process_staged_linkedin_row(db: Session, staged_row):
+    linkedin_url = (staged_row.linkedin_profile_url or "").strip().rstrip("/") or None
+
+    if linkedin_url:
+        existing_url_contact = (
+            db.query(models.Contact)
+            .filter(
+                func.lower(
+                    func.rtrim(models.Contact.linkedin_profile_url, "/")
+                ) == linkedin_url.lower()
+            )
+            .first()
+        )
+
+        if existing_url_contact:
+            existing_url_contact.linkedin_connection_status = "connected"
+
+            if not existing_url_contact.source_type:
+                existing_url_contact.source_type = "linkedin"
+
+            staged_row.matched_contact_id = existing_url_contact.id
+            staged_row.matched_organisation_id = existing_url_contact.organisation_id
+            staged_row.match_status = "auto_matched"
+            staged_row.match_confidence = 1.0
+            staged_row.review_status = "not_required"
+            staged_row.processed_at = datetime.now(timezone.utc)
+
+            activity = models.Activity(
+                contact_id=existing_url_contact.id,
+                organisation_id=existing_url_contact.organisation_id,
+                activity_type="linkedin_connection_imported",
+                activity_date=datetime.now(timezone.utc),
+                outcome="LinkedIn connection imported",
+                notes=f"Matched by LinkedIn profile URL from upload run {staged_row.import_run_id}",
+                logged_by="system",
+            )
+            db.add(activity)
+
+            run = (
+                db.query(models.LinkedinImportRun)
+                .filter(models.LinkedinImportRun.id == staged_row.import_run_id)
+                .first()
+            )
+            if run:
+                run.rows_processed = (run.rows_processed or 0) + 1
+                run.rows_matched = (run.rows_matched or 0) + 1
+
+            db.commit()
+            db.refresh(staged_row)
+            return staged_row
+
     org_candidates = find_organisation_candidates(db, staged_row.company_name_normalized)
     best_org = org_candidates[0] if org_candidates else None
 
