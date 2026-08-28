@@ -6,3 +6,8 @@ venv/
 .idea/
 .vscode/
 .DS_Store
+# Local editor and timestamped source backups
+*.bak
+*.bak.*
+*.bak-*
+*.save
