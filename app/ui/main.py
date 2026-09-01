@@ -166,33 +166,65 @@ def crm_home(request: Request) -> HTMLResponse:
 def linkedin_opportunities_report_page(
     request: Request,
     organisation_id: int | None = None,
-    status: list[str] | None = None,
+    report_date: str | None = None,
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
-    selected_statuses = tuple(status or ["not_connected", "unknown"])
-    opportunities = crud.get_reports_linkedin_connection_opportunities(
+    try:
+        selected_report_date = (
+            date.fromisoformat(report_date)
+            if report_date
+            else datetime.now(BRISBANE_TZ).date()
+        )
+    except ValueError:
+        selected_report_date = datetime.now(BRISBANE_TZ).date()
+
+    daily_report = crud.get_reports_daily_linkedin_actions(
         db,
+        report_date=selected_report_date,
         organisation_id=organisation_id,
-        statuses=selected_statuses,
+        connect_limit=25,
     )
     organisations = crud.list_organisations(db)
 
     return render_page(
         request,
         "linkedin_opportunities.html",
-        page_title="LinkedIn connection opportunities",
-        heading="LinkedIn connection opportunities",
+        page_title="Daily LinkedIn actions",
+        heading="Daily LinkedIn actions",
         description=(
-            "Review contacts by organisation who are not connected "
-            "or whose LinkedIn relationship is still unknown."
+            "New APS Jobs and SmartJobs contacts needing a LinkedIn "
+            "connection request, plus pending invitation follow-up."
         ),
         active_page="reports",
         organisations=organisations,
         selected_organisation_id=organisation_id,
-        selected_statuses=set(selected_statuses),
-        opportunities=opportunities,
+        report_date=selected_report_date.isoformat(),
+        connect_today=daily_report["connect_today"],
+        pending_follow_up=daily_report["pending_follow_up"],
+        eligible_total=daily_report["eligible_total"],
+        new_today_total=daily_report["new_today_total"],
+        backlog_total=daily_report["backlog_total"],
+        pending_total=daily_report["pending_total"],
     )
 
+def _linkedin_opportunities_redirect(
+    organisation_id: int | None,
+    report_date: str | None,
+) -> RedirectResponse:
+    params: list[str] = []
+
+    if organisation_id:
+        params.append(f"organisation_id={organisation_id}")
+
+    if report_date:
+        params.append(f"report_date={report_date}")
+
+    query = f"?{'&'.join(params)}" if params else ""
+
+    return RedirectResponse(
+        url=f"/ui/reports/linkedin-opportunities{query}",
+        status_code=303,
+    )
 
 @app.post(
     "/reports/linkedin-opportunities/{contact_id}/mark-invitation-sent"
@@ -200,7 +232,7 @@ def linkedin_opportunities_report_page(
 def mark_linkedin_invitation_sent(
     contact_id: int,
     organisation_id: int | None = Form(default=None),
-    status: list[str] | None = Form(default=None),
+    report_date: str | None = Form(default=None),
     db: Session = Depends(get_db),
 ) -> RedirectResponse:
     contact = db.execute(
@@ -268,19 +300,164 @@ def mark_linkedin_invitation_sent(
         db.rollback()
         raise
 
-    params: list[str] = []
-    if organisation_id:
-        params.append(f"organisation_id={organisation_id}")
-
-    for selected_status in status or []:
-        params.append(f"status={selected_status}")
-
-    query = f"?{'&'.join(params)}" if params else ""
-    return RedirectResponse(
-        url=f"/ui/reports/linkedin-opportunities{query}",
-        status_code=303,
+    return _linkedin_opportunities_redirect(
+        organisation_id=organisation_id,
+        report_date=report_date,
     )
 
+@app.post(
+    "/reports/linkedin-opportunities/{contact_id}/update-invitation-status"
+)
+def update_linkedin_invitation_status(
+    contact_id: int,
+    action: str = Form(...),
+    organisation_id: int | None = Form(default=None),
+    report_date: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    action_config = {
+        "still_pending": {
+            "contact_status": "pending",
+            "activity_type": "linkedin_invitation_follow_up",
+            "outcome": "Pending LinkedIn connection confirmation",
+            "requires_invitation": True,
+            "notes": (
+                "LinkedIn invitation follow-up recorded from LinkedIn "
+                "connection opportunities report."
+            ),
+        },
+        "connected": {
+            "contact_status": "connected",
+            "activity_type": "linkedin_connection_confirmed",
+            "outcome": "LinkedIn connection confirmed",
+            "requires_invitation": True,
+            "notes": (
+                "LinkedIn connection confirmed from LinkedIn connection "
+                "opportunities report."
+            ),
+        },
+        "connection_declined": {
+            "contact_status": "not_connected",
+            "activity_type": "linkedin_connection_not_connected",
+            "outcome": "Connection Declined",
+            "requires_invitation": True,
+            "notes": (
+                "LinkedIn invitation marked as declined from LinkedIn "
+                "connection opportunities report."
+            ),
+        },
+        "not_invited_to_connect": {
+            "contact_status": "not_connected",
+            "activity_type": "linkedin_connection_not_connected",
+            "outcome": "Not Invited to Connect",
+            "requires_invitation": False,
+            "notes": (
+                "Contact was reviewed and not invited to connect from "
+                "LinkedIn connection opportunities report."
+            ),
+        },
+        "not_on_linkedin": {
+            "contact_status": "not_connected",
+            "activity_type": "linkedin_connection_not_connected",
+            "outcome": "Not on LinkedIn",
+            "requires_invitation": False,
+            "notes": (
+                "No valid LinkedIn profile was identified for this contact "
+                "from the LinkedIn connection opportunities report."
+            ),
+        },
+    }
+
+    config = action_config.get(action)
+    if not config:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid LinkedIn invitation status action",
+        )
+
+    contact = db.execute(
+        text(
+            """
+            select
+                c.id,
+                c.organisation_id,
+                c.linkedin_invitation_sent_at
+            from public.contacts c
+            where c.id = :contact_id
+            """
+        ),
+        {"contact_id": contact_id},
+    ).mappings().first()
+
+    if not contact:
+        raise HTTPException(status_code=404, detail="Contact not found")
+
+    if config["requires_invitation"] and not contact[
+        "linkedin_invitation_sent_at"
+    ]:
+        raise HTTPException(
+            status_code=409,
+            detail="Contact has no recorded LinkedIn invitation",
+        )
+
+    try:
+        db.execute(
+            text(
+                """
+                update public.contacts
+                set
+                    linkedin_connection_status = :contact_status,
+                    updated_at = now()
+                where id = :contact_id
+                """
+            ),
+            {
+                "contact_id": contact_id,
+                "contact_status": config["contact_status"],
+            },
+        )
+
+        db.execute(
+            text(
+                """
+                insert into public.activities (
+                    contact_id,
+                    organisation_id,
+                    activity_type,
+                    activity_date,
+                    outcome,
+                    notes,
+                    logged_by
+                )
+                values (
+                    :contact_id,
+                    :organisation_id,
+                    :activity_type,
+                    now(),
+                    :outcome,
+                    :notes,
+                    'bd-api'
+                )
+                """
+            ),
+            {
+                "contact_id": contact_id,
+                "organisation_id": contact["organisation_id"],
+                "activity_type": config["activity_type"],
+                "outcome": config["outcome"],
+                "notes": config["notes"],
+            },
+        )
+
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    return _linkedin_opportunities_redirect(
+        organisation_id=organisation_id,
+        report_date=report_date,
+    )
 
 @app.get("/reports", response_class=HTMLResponse)
 def reports_page(
@@ -1004,6 +1181,196 @@ def load_smartjobs_audit_rows(
             return rows[:limit], ""
     except (OSError, csv.Error) as exc:
         return [], f"Could not read the SmartJobs audit file: {exc}"
+
+
+
+APS_AUDIT_FILE = Path(
+    os.getenv(
+        "APS_CANDIDATE_REVIEW_FILE",
+        "/home/ubuntu/apsjobs/data/apsjobs_candidate_review.csv",
+    )
+)
+APS_AUDIT_COLUMNS = [
+    "job_id",
+    "job_title",
+    "organisation",
+    "matched_client",
+    "salary",
+    "location",
+    "close_date",
+    "date_scraped",
+    "job_category",
+    "aps_classification",
+    "agency_employment_act",
+    "title_candidate_category",
+    "title_candidate_reason",
+    "review_recommended",
+    "contact_name",
+    "contact_email",
+    "contact_phone",
+    "job_url",
+]
+
+
+def load_aps_audit_rows(
+    category: str = "",
+    query: str = "",
+    limit: int = 200,
+) -> tuple[list[dict[str, str]], str]:
+    if not APS_AUDIT_FILE.exists():
+        return [], ""
+
+    try:
+        with APS_AUDIT_FILE.open(
+            encoding="utf-8-sig",
+            newline="",
+        ) as audit_file:
+            reader = csv.DictReader(audit_file)
+            if not reader.fieldnames:
+                return [], "The APS candidate-review file has no header row."
+
+            rows = []
+            category = category.strip().lower()
+            query = query.strip().lower()
+
+            for raw_row in reader:
+                row = {
+                    column: (raw_row.get(column) or "").strip()
+                    for column in APS_AUDIT_COLUMNS
+                }
+
+                if category and row["title_candidate_category"].lower() != category:
+                    continue
+
+                if query:
+                    searchable = " ".join(
+                        row[column].lower()
+                        for column in (
+                            "job_id",
+                            "job_title",
+                            "organisation",
+                            "matched_client",
+                            "job_category",
+                            "aps_classification",
+                            "title_candidate_category",
+                            "title_candidate_reason",
+                        )
+                    )
+                    if query not in searchable:
+                        continue
+
+                rows.append(row)
+
+            rows.sort(
+                key=lambda row: (
+                    row["close_date"],
+                    row["job_title"],
+                ),
+                reverse=True,
+            )
+            return rows[:limit], ""
+    except (OSError, csv.Error) as exc:
+        return [], f"Could not read the APS candidate-review file: {exc}"
+
+
+@app.get("/aps-jobs", response_class=HTMLResponse)
+def aps_jobs_results_page(
+    request: Request,
+    category: str = "",
+    q: str = "",
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    audit_rows, audit_error = load_aps_audit_rows(
+        category=category,
+        query=q,
+    )
+    scrape_runs = db.execute(
+        text(
+            """
+            select
+                id,
+                started_at,
+                finished_at,
+                status,
+                jobs_seen,
+                jobs_matched,
+                review_items_created,
+                duplicates_skipped,
+                error_count,
+                error_message,
+                notes
+            from public.scrape_runs
+            where source_name = 'aps_jobs'
+            order by started_at desc
+            limit 20
+            """
+        )
+    ).mappings().all()
+
+    review_items = db.execute(
+        text(
+            """
+            select
+                id,
+                review_status,
+                source_record_key,
+                job_title,
+                scraped_organisation,
+                scraped_contact_name,
+                scraped_contact_email,
+                scraped_contact_phone,
+                job_url,
+                source_payload,
+                review_action,
+                review_notes,
+                resolved_by,
+                resolved_at,
+                created_at,
+                updated_at
+            from public.review_queue
+            where source_type = 'aps_jobs'
+            order by updated_at desc, id desc
+            limit 100
+            """
+        )
+    ).mappings().all()
+
+    return render_page(
+        request,
+        "aps_jobs/results.html",
+        page_title="APS Jobs Results",
+        heading="APS Jobs Results",
+        description="APS candidate results and their review-queue status.",
+        active_page="aps_jobs_results",
+        scrape_runs=scrape_runs,
+        review_items=review_items,
+        audit_rows=audit_rows,
+        audit_error=audit_error,
+        audit_category=category.strip().lower(),
+        audit_query=q.strip(),
+        audit_file_exists=APS_AUDIT_FILE.exists(),
+    )
+
+
+@app.get("/aps-jobs/review-queue", response_class=HTMLResponse)
+def aps_jobs_review_queue_page(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    organisation_options = [
+        {"id": organisation.id, "name": organisation.name}
+        for organisation in crud.list_organisations(db)
+    ]
+    return render_page(
+        request,
+        "aps_jobs/review_queue.html",
+        page_title="APS Jobs Review Queue",
+        heading="APS Jobs Review Queue",
+        description="Approve APS candidates first, then explicitly link or create CRM contacts under an existing organisation.",
+        active_page="aps_jobs_review_queue",
+        organisation_options=organisation_options,
+    )
+
 
 
 @app.get("/smartjobs", response_class=HTMLResponse)

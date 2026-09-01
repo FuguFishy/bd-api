@@ -944,3 +944,14 @@ input:focus, select:focus, textarea:focus { outline: 3px solid rgba(37, 99, 235,
   display: flex;
   align-items: end;
 }
+
+.button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.button-row form {
+  margin: 0;
+}

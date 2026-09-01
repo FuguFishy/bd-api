@@ -5,16 +5,22 @@
   <div class="card">
     <div class="panel-header">
       <div>
-        <p class="eyebrow">Contacts</p>
-        <h2>LinkedIn connection opportunities</h2>
+        <p class="eyebrow">Daily workflow</p>
+        <h2>LinkedIn connection actions</h2>
         <p class="muted">
-          Select an organisation, then review people who are not connected,
-          have an unknown relationship, or have a pending invitation.
+          New APS Jobs and SmartJobs contacts are prioritised first, followed
+          by the source-linked connection backlog. The daily action list is
+          capped at 25 contacts.
         </p>
       </div>
     </div>
 
     <form method="get" action="/ui/reports/linkedin-opportunities" class="filter-bar">
+      <label>
+        Report date
+        <input type="date" name="report_date" value="{{ report_date }}">
+      </label>
+
       <label>
         Organisation
         <select name="organisation_id">
@@ -28,97 +34,115 @@
         </select>
       </label>
 
-      <label>
-        <input type="checkbox" name="status" value="not_connected"
-          {% if "not_connected" in selected_statuses %}checked{% endif %}>
-        Not connected
-      </label>
-
-      <label>
-        <input type="checkbox" name="status" value="unknown"
-          {% if "unknown" in selected_statuses %}checked{% endif %}>
-        Unknown
-      </label>
-
-      <label>
-        <input type="checkbox" name="status" value="pending"
-          {% if "pending" in selected_statuses %}checked{% endif %}>
-        Pending invitation
-      </label>
-
       <div class="filter-actions">
-        <button class="btn btn-primary" type="submit">Filter</button>
+        <button class="btn btn-primary" type="submit">Refresh queue</button>
         <a class="btn button-secondary" href="/ui/reports/linkedin-opportunities">
-          Reset
+          Today
         </a>
       </div>
     </form>
   </div>
 
+  <div class="stats-grid">
+    <article class="summary-card">
+      <p class="summary-label">Connect today</p>
+      <p class="summary-value">{{ connect_today|length }}</p>
+      <p class="summary-note">Maximum 25 daily actions.</p>
+    </article>
+    <article class="summary-card">
+      <p class="summary-label">New source contacts</p>
+      <p class="summary-value">{{ new_today_total }}</p>
+      <p class="summary-note">Approved or resolved on {{ report_date }}.</p>
+    </article>
+    <article class="summary-card">
+      <p class="summary-label">Connection backlog</p>
+      <p class="summary-value">{{ backlog_total }}</p>
+      <p class="summary-note">{{ eligible_total }} eligible source contacts in total.</p>
+    </article>
+    <article class="summary-card">
+      <p class="summary-label">Pending invitations</p>
+      <p class="summary-value">{{ pending_total }}</p>
+      <p class="summary-note">Follow up on requests already sent.</p>
+    </article>
+  </div>
+
   <div class="card">
     <div class="panel-header">
       <div>
-        <p class="eyebrow">Results</p>
-        <h2>
-          {{ opportunities|length }}
-          contact{{ "" if opportunities|length == 1 else "s" }}
-        </h2>
+        <p class="eyebrow">Priority queue</p>
+        <h2>Connect today</h2>
+        <p class="muted">
+          Newly approved or resolved contacts for {{ report_date }} appear
+          first. Older source-linked contacts fill the remaining places.
+        </p>
       </div>
     </div>
 
-    {% if opportunities %}
+    {% if connect_today %}
       <div class="table-wrap">
         <table class="ops-table">
           <thead>
             <tr>
+              <th>Priority</th>
               <th>Contact</th>
               <th>Organisation</th>
-              <th>Role</th>
-              <th>LinkedIn status</th>
-              <th>Invitation sent</th>
               <th>Source</th>
-              <th>Contact details</th>
+              <th>Job context</th>
+              <th>Added</th>
+              <th>LinkedIn status</th>
               <th>Profile</th>
-              <th>Open tasks</th>
               <th>Action</th>
             </tr>
           </thead>
           <tbody>
-            {% for item in opportunities %}
+            {% for item in connect_today %}
               <tr>
+                <td>
+                  {% if item.queue_priority == 0 %}
+                    <span class="status-pill status-new">New today</span>
+                  {% else %}
+                    <span class="status-pill">Backlog</span>
+                  {% endif %}
+                </td>
                 <td>
                   <a href="/ui/contacts/{{ item.contact_id }}/edit">
                     {{ item.contact_name }}
                   </a>
+                  {% if item.position_title %}
+                    <div class="muted">{{ item.position_title }}</div>
+                  {% elif item.department %}
+                    <div class="muted">{{ item.department }}</div>
+                  {% endif %}
                 </td>
                 <td>
                   <a href="/ui/organisations/{{ item.organisation_id }}">
                     {{ item.organisation_name }}
                   </a>
                 </td>
-                <td>{{ item.position_title or item.department or "—" }}</td>
+                <td>
+                  {% if item.source_type == "aps_jobs" %}
+                    APS Jobs
+                  {% elif item.source_type == "smartjobs" %}
+                    SmartJobs
+                  {% else %}
+                    {{ item.source_type or "—" }}
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.job_url %}
+                    <a href="{{ item.job_url }}" target="_blank" rel="noopener noreferrer">
+                      {{ item.job_title or "Open job" }}
+                    </a>
+                  {% else %}
+                    {{ item.job_title or "—" }}
+                  {% endif %}
+                </td>
+                <td>{{ item.source_action_at or "—" }}</td>
                 <td>
                   {% if item.linkedin_status_group == "not_connected" %}
                     <span class="status-pill status-rejected">Not connected</span>
-                  {% elif item.linkedin_status_group == "pending" %}
-                    <span class="status-pill status-deferred">Pending invitation</span>
                   {% else %}
                     <span class="status-pill status-new">Unknown</span>
-                  {% endif %}
-                </td>
-                <td>
-                  {% if item.linkedin_invitation_sent_at %}
-                    {{ item.linkedin_invitation_sent_at }}
-                  {% else %}
-                    —
-                  {% endif %}
-                </td>
-                <td>{{ item.source_type or "manual" }}</td>
-                <td>
-                  {% if item.email %}
-                    <a href="mailto:{{ item.email }}">{{ item.email }}</a>
-                  {% else %}
-                    —
                   {% endif %}
                 </td>
                 <td>
@@ -131,29 +155,172 @@
                     —
                   {% endif %}
                 </td>
-                <td>{{ item.open_task_count }}</td>
                 <td>
-                  {% if item.linkedin_status_group in ("not_connected", "unknown") %}
+                  <div class="button-row">
                     <form method="post"
                       action="/ui/reports/linkedin-opportunities/{{ item.contact_id }}/mark-invitation-sent">
                       {% if selected_organisation_id %}
                         <input type="hidden" name="organisation_id"
                           value="{{ selected_organisation_id }}">
                       {% endif %}
-
-                      {% for selected_status in selected_statuses %}
-                        <input type="hidden" name="status"
-                          value="{{ selected_status }}">
-                      {% endfor %}
-
+                      <input type="hidden" name="report_date" value="{{ report_date }}">
                       <button class="btn button-secondary" type="submit">
-                        Mark invitation sent
+                        Connect Requested
                       </button>
-                    </form>
+                     </form>
+
+                     <form method="post"
+                       action="/ui/reports/linkedin-opportunities/{{ item.contact_id }}/update-invitation-status">
+                       {% if selected_organisation_id %}
+                         <input type="hidden" name="organisation_id"
+                           value="{{ selected_organisation_id }}">
+                       {% endif %}
+                       <input type="hidden" name="report_date" value="{{ report_date }}">
+                       <input type="hidden" name="action" value="not_invited_to_connect">
+                       <button class="btn button-secondary" type="submit">
+                         Not Invited
+                       </button>
+                      </form>
+
+                     <form method="post"
+                       action="/ui/reports/linkedin-opportunities/{{ item.contact_id }}/update-invitation-status">
+                       {% if selected_organisation_id %}
+                         <input type="hidden" name="organisation_id"
+                           value="{{ selected_organisation_id }}">
+                       {% endif %}
+                       <input type="hidden" name="report_date" value="{{ report_date }}">
+                       <input type="hidden" name="action" value="not_on_linkedin">
+                       <button class="btn button-secondary" type="submit">
+                         Not on LinkedIn
+                       </button>
+                      </form>
+                     </div>
+                    </td>
+                   </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty-state">
+        No APS Jobs or SmartJobs contacts need a LinkedIn connection request
+        for the selected date and organisation filter.
+      </p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Follow-up queue</p>
+        <h2>Pending invitations</h2>
+        <p class="muted">
+          Oldest invitation requests are shown first. LinkedIn import
+          confirmation should later move these contacts to Connected.
+        </p>
+      </div>
+    </div>
+
+    {% if pending_follow_up %}
+      <div class="table-wrap">
+        <table class="ops-table">
+          <thead>
+            <tr>
+              <th>Contact</th>
+              <th>Organisation</th>
+              <th>Source</th>
+              <th>Job context</th>
+              <th>Invitation sent</th>
+              <th>Days pending</th>
+              <th>Profile</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in pending_follow_up %}
+              <tr>
+                <td>
+                  <a href="/ui/contacts/{{ item.contact_id }}/edit">
+                    {{ item.contact_name }}
+                  </a>
+                </td>
+                <td>
+                  <a href="/ui/organisations/{{ item.organisation_id }}">
+                    {{ item.organisation_name }}
+                  </a>
+                </td>
+                <td>
+                  {% if item.source_type == "aps_jobs" %}
+                    APS Jobs
+                  {% elif item.source_type == "smartjobs" %}
+                    SmartJobs
+                  {% else %}
+                    {{ item.source_type or "—" }}
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.job_url %}
+                    <a href="{{ item.job_url }}" target="_blank" rel="noopener noreferrer">
+                      {{ item.job_title or "Open job" }}
+                    </a>
+                  {% else %}
+                    {{ item.job_title or "—" }}
+                  {% endif %}
+                </td>
+                <td>{{ item.linkedin_invitation_sent_at or "—" }}</td>
+                <td>{{ item.invitation_age_days }}</td>
+                <td>
+                  {% if item.linkedin_profile_url %}
+                    <a href="{{ item.linkedin_profile_url }}"
+                      target="_blank" rel="noopener noreferrer">
+                      Open LinkedIn
+                    </a>
                   {% else %}
                     —
                   {% endif %}
                 </td>
+<td>
+  <div class="button-row">
+    <form method="post"
+      action="/ui/reports/linkedin-opportunities/{{ item.contact_id }}/update-invitation-status">
+      {% if selected_organisation_id %}
+        <input type="hidden" name="organisation_id"
+          value="{{ selected_organisation_id }}">
+      {% endif %}
+      <input type="hidden" name="report_date" value="{{ report_date }}">
+      <input type="hidden" name="action" value="still_pending">
+      <button class="btn button-secondary" type="submit">
+        Still Pending
+      </button>
+    </form>
+
+    <form method="post"
+      action="/ui/reports/linkedin-opportunities/{{ item.contact_id }}/update-invitation-status">
+      {% if selected_organisation_id %}
+        <input type="hidden" name="organisation_id"
+          value="{{ selected_organisation_id }}">
+      {% endif %}
+      <input type="hidden" name="report_date" value="{{ report_date }}">
+      <input type="hidden" name="action" value="connected">
+      <button class="btn button-primary" type="submit">
+        Connected
+      </button>
+    </form>
+
+    <form method="post"
+      action="/ui/reports/linkedin-opportunities/{{ item.contact_id }}/update-invitation-status">
+      {% if selected_organisation_id %}
+        <input type="hidden" name="organisation_id"
+          value="{{ selected_organisation_id }}">
+      {% endif %}
+      <input type="hidden" name="report_date" value="{{ report_date }}">
+      <input type="hidden" name="action" value="connection_declined">
+      <button class="btn button-secondary" type="submit">
+        Connection Declined
+      </button>
+    </form>
+  </div>
+</td>
               </tr>
             {% endfor %}
           </tbody>
@@ -161,7 +328,7 @@
       </div>
     {% else %}
       <p class="empty-state">
-        No contacts match the selected organisation and LinkedIn relationship filters.
+        No source-linked LinkedIn invitations are currently pending.
       </p>
     {% endif %}
   </div>
