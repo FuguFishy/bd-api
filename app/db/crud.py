@@ -1398,6 +1398,137 @@ def get_reports_activity_by_contact(
     return [dict(row) for row in rows]
 
 
+def get_reports_linkedin_connection_opportunities(
+    db: Session,
+    organisation_id: int | None = None,
+    statuses: tuple[str, ...] = (
+        "not_connected",
+        "unknown",
+    ),
+) -> list[dict[str, Any]]:
+    requested_statuses = {
+        status.strip().lower()
+        for status in statuses
+        if status.strip()
+    }
+
+    include_not_connected = "not_connected" in requested_statuses
+    include_unknown = "unknown" in requested_statuses
+    include_pending = "pending" in requested_statuses
+
+    if not (
+        include_not_connected
+        or include_unknown
+        or include_pending
+    ):
+        return []
+
+    rows = db.execute(
+        text(
+            """
+            select
+                c.id as contact_id,
+                coalesce(
+                    nullif(trim(c.full_name), ''),
+                    nullif(trim(concat_ws(' ', c.first_name, c.last_name)), ''),
+                    'Unnamed contact'
+                ) as contact_name,
+                c.position_title,
+                c.department,
+                c.email,
+                c.linkedin_profile_url,
+                c.linkedin_connection_status,
+                c.linkedin_invitation_sent_at,
+                c.source_type,
+                c.created_at,
+                o.id as organisation_id,
+                o.name as organisation_name,
+                count(t.id) filter (
+                    where coalesce(lower(t.status), 'open')
+                    not in ('completed', 'complete', 'cancelled', 'canceled')
+                ) as open_task_count,
+                case
+                    when lower(trim(coalesce(c.linkedin_connection_status, '')))
+                         in ('not connected', 'not_connected', 'no')
+                        then 'not_connected'
+                    when lower(trim(coalesce(c.linkedin_connection_status, '')))
+                         in ('pending', 'pending invitation')
+                        then 'pending'
+                    else 'unknown'
+                end as linkedin_status_group
+            from public.contacts c
+            join public.organisations o
+              on o.id = c.organisation_id
+             and o.is_archived = false
+            left join public.tasks t on t.contact_id = c.id
+            where (:organisation_id is null or c.organisation_id = :organisation_id)
+              and (
+                    (
+                        :include_not_connected
+                        and lower(trim(coalesce(c.linkedin_connection_status, '')))
+                            in ('not connected', 'not_connected', 'no')
+                    )
+                    or
+                    (
+                        :include_pending
+                        and lower(trim(coalesce(c.linkedin_connection_status, '')))
+                            in ('pending', 'pending invitation')
+                    )
+                    or
+                    (
+                        :include_unknown
+                        and lower(trim(coalesce(c.linkedin_connection_status, '')))
+                            not in (
+                                'connected',
+                                'yes',
+                                'not connected',
+                                'not_connected',
+                                'no',
+                                'pending',
+                                'pending invitation'
+                            )
+                    )
+              )
+            group by
+                c.id,
+                c.full_name,
+                c.first_name,
+                c.last_name,
+                c.position_title,
+                c.department,
+                c.email,
+                c.linkedin_profile_url,
+                c.linkedin_connection_status,
+                c.linkedin_invitation_sent_at,
+                c.source_type,
+                c.created_at,
+                o.id,
+                o.name
+            order by
+                case
+                    when lower(trim(coalesce(c.linkedin_connection_status, '')))
+                         in ('not connected', 'not_connected', 'no')
+                        then 0
+                    when lower(trim(coalesce(c.linkedin_connection_status, '')))
+                         in ('pending', 'pending invitation')
+                        then 1
+                    else 2
+                end,
+                o.name asc,
+                contact_name asc
+            """
+        ),
+        {
+            "organisation_id": organisation_id,
+            "include_not_connected": include_not_connected,
+            "include_unknown": include_unknown,
+            "include_pending": include_pending,
+        },
+    ).mappings().all()
+
+    return [dict(row) for row in rows]
+
+
 def get_reports_linkedin_connections_by_organisation(
     db: Session,
 ) -> list[dict[str, Any]]:

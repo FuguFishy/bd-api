@@ -162,6 +162,126 @@ def crm_home(request: Request) -> HTMLResponse:
 
 
 
+@app.get("/reports/linkedin-opportunities", response_class=HTMLResponse)
+def linkedin_opportunities_report_page(
+    request: Request,
+    organisation_id: int | None = None,
+    status: list[str] | None = None,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    selected_statuses = tuple(status or ["not_connected", "unknown"])
+    opportunities = crud.get_reports_linkedin_connection_opportunities(
+        db,
+        organisation_id=organisation_id,
+        statuses=selected_statuses,
+    )
+    organisations = crud.list_organisations(db)
+
+    return render_page(
+        request,
+        "linkedin_opportunities.html",
+        page_title="LinkedIn connection opportunities",
+        heading="LinkedIn connection opportunities",
+        description=(
+            "Review contacts by organisation who are not connected "
+            "or whose LinkedIn relationship is still unknown."
+        ),
+        active_page="reports",
+        organisations=organisations,
+        selected_organisation_id=organisation_id,
+        selected_statuses=set(selected_statuses),
+        opportunities=opportunities,
+    )
+
+
+@app.post(
+    "/reports/linkedin-opportunities/{contact_id}/mark-invitation-sent"
+)
+def mark_linkedin_invitation_sent(
+    contact_id: int,
+    organisation_id: int | None = Form(default=None),
+    status: list[str] | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> RedirectResponse:
+    contact = db.execute(
+        text(
+            """
+            select
+                c.id,
+                c.organisation_id
+            from public.contacts c
+            where c.id = :contact_id
+            """
+        ),
+        {"contact_id": contact_id},
+    ).mappings().first()
+
+    if not contact:
+        raise HTTPException(status_code=404, detail="Contact not found")
+
+    try:
+        db.execute(
+            text(
+                """
+                update public.contacts
+                set
+                    linkedin_connection_status = 'pending',
+                    linkedin_invitation_sent_at = now(),
+                    updated_at = now()
+                where id = :contact_id
+                """
+            ),
+            {"contact_id": contact_id},
+        )
+
+        db.execute(
+            text(
+                """
+                insert into public.activities (
+                    contact_id,
+                    organisation_id,
+                    activity_type,
+                    activity_date,
+                    outcome,
+                    notes,
+                    logged_by
+                )
+                values (
+                    :contact_id,
+                    :organisation_id,
+                    'linkedin_invitation_sent',
+                    now(),
+                    'Pending LinkedIn connection confirmation',
+                    'Invitation marked as sent from LinkedIn connection opportunities report.',
+                    'bd-api'
+                )
+                """
+            ),
+            {
+                "contact_id": contact_id,
+                "organisation_id": contact["organisation_id"],
+            },
+        )
+
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+
+    params: list[str] = []
+    if organisation_id:
+        params.append(f"organisation_id={organisation_id}")
+
+    for selected_status in status or []:
+        params.append(f"status={selected_status}")
+
+    query = f"?{'&'.join(params)}" if params else ""
+    return RedirectResponse(
+        url=f"/ui/reports/linkedin-opportunities{query}",
+        status_code=303,
+    )
+
+
 @app.get("/reports", response_class=HTMLResponse)
 def reports_page(
     request: Request,

@@ -47,6 +47,7 @@ class Contact(Base):
     source_type = Column(Text)
     linkedin_profile_url = Column(Text)
     linkedin_connection_status = Column(Text)
+    linkedin_invitation_sent_at = Column(DateTime(timezone=True))
     verification_status = Column(Text)
     notes = Column(Text)
     organisation_name = Column(Text)

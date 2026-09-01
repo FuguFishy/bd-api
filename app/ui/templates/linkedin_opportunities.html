@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="section-stack">
+  <div class="card">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Contacts</p>
+        <h2>LinkedIn connection opportunities</h2>
+        <p class="muted">
+          Select an organisation, then review people who are not connected,
+          have an unknown relationship, or have a pending invitation.
+        </p>
+      </div>
+    </div>
+
+    <form method="get" action="/ui/reports/linkedin-opportunities" class="filter-bar">
+      <label>
+        Organisation
+        <select name="organisation_id">
+          <option value="">All organisations</option>
+          {% for organisation in organisations %}
+            <option value="{{ organisation.id }}"
+              {% if selected_organisation_id == organisation.id %}selected{% endif %}>
+              {{ organisation.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+
+      <label>
+        <input type="checkbox" name="status" value="not_connected"
+          {% if "not_connected" in selected_statuses %}checked{% endif %}>
+        Not connected
+      </label>
+
+      <label>
+        <input type="checkbox" name="status" value="unknown"
+          {% if "unknown" in selected_statuses %}checked{% endif %}>
+        Unknown
+      </label>
+
+      <label>
+        <input type="checkbox" name="status" value="pending"
+          {% if "pending" in selected_statuses %}checked{% endif %}>
+        Pending invitation
+      </label>
+
+      <div class="filter-actions">
+        <button class="btn btn-primary" type="submit">Filter</button>
+        <a class="btn button-secondary" href="/ui/reports/linkedin-opportunities">
+          Reset
+        </a>
+      </div>
+    </form>
+  </div>
+
+  <div class="card">
+    <div class="panel-header">
+      <div>
+        <p class="eyebrow">Results</p>
+        <h2>
+          {{ opportunities|length }}
+          contact{{ "" if opportunities|length == 1 else "s" }}
+        </h2>
+      </div>
+    </div>
+
+    {% if opportunities %}
+      <div class="table-wrap">
+        <table class="ops-table">
+          <thead>
+            <tr>
+              <th>Contact</th>
+              <th>Organisation</th>
+              <th>Role</th>
+              <th>LinkedIn status</th>
+              <th>Invitation sent</th>
+              <th>Source</th>
+              <th>Contact details</th>
+              <th>Profile</th>
+              <th>Open tasks</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in opportunities %}
+              <tr>
+                <td>
+                  <a href="/ui/contacts/{{ item.contact_id }}/edit">
+                    {{ item.contact_name }}
+                  </a>
+                </td>
+                <td>
+                  <a href="/ui/organisations/{{ item.organisation_id }}">
+                    {{ item.organisation_name }}
+                  </a>
+                </td>
+                <td>{{ item.position_title or item.department or "—" }}</td>
+                <td>
+                  {% if item.linkedin_status_group == "not_connected" %}
+                    <span class="status-pill status-rejected">Not connected</span>
+                  {% elif item.linkedin_status_group == "pending" %}
+                    <span class="status-pill status-deferred">Pending invitation</span>
+                  {% else %}
+                    <span class="status-pill status-new">Unknown</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.linkedin_invitation_sent_at %}
+                    {{ item.linkedin_invitation_sent_at }}
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+                <td>{{ item.source_type or "manual" }}</td>
+                <td>
+                  {% if item.email %}
+                    <a href="mailto:{{ item.email }}">{{ item.email }}</a>
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+                <td>
+                  {% if item.linkedin_profile_url %}
+                    <a href="{{ item.linkedin_profile_url }}"
+                      target="_blank" rel="noopener noreferrer">
+                      Open LinkedIn
+                    </a>
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+                <td>{{ item.open_task_count }}</td>
+                <td>
+                  {% if item.linkedin_status_group in ("not_connected", "unknown") %}
+                    <form method="post"
+                      action="/ui/reports/linkedin-opportunities/{{ item.contact_id }}/mark-invitation-sent">
+                      {% if selected_organisation_id %}
+                        <input type="hidden" name="organisation_id"
+                          value="{{ selected_organisation_id }}">
+                      {% endif %}
+
+                      {% for selected_status in selected_statuses %}
+                        <input type="hidden" name="status"
+                          value="{{ selected_status }}">
+                      {% endfor %}
+
+                      <button class="btn button-secondary" type="submit">
+                        Mark invitation sent
+                      </button>
+                    </form>
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty-state">
+        No contacts match the selected organisation and LinkedIn relationship filters.
+      </p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
